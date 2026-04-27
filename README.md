@@ -1,245 +1,155 @@
-# 🚀 Phase 3: Jetson Orin Nano Perception Pipeline (CSI Camera + TensorRT)
+# 🤖 Autonomous Mobile Robot (Perception + Tracking + Voice Interaction)
 
 ---
 
-## 🎯 Objective
+## 🎯 Project Overview
 
-Migrate the perception pipeline from WSL to native hardware (Jetson Orin Nano), integrate CSI camera (IMX219), and optimize inference using TensorRT for real-time performance.
+This project focuses on building an autonomous mobile robot capable of perceiving its environment, detecting and tracking objects, and making movement decisions in real time.
 
----
-
-## 🏗️ What Was Implemented
-
-* Setup Jetson Orin Nano with Ubuntu (JetPack)
-* Integrated IMX219 CSI camera
-* Rebuilt camera node using GStreamer (nvargus)
-* Deployed YOLOv8 model on device
-* Converted model → ONNX → TensorRT engine
-* Built end-to-end pipeline: Camera → Detection → Display
-* Integrated ROS2 launch system for full pipeline
+The system evolves from foundational ROS2 learning to real-world deployment on Jetson Orin Nano, and is designed to further expand into human interaction using voice and conversational AI.
 
 ---
 
-### 🔹 Package Used
+## 🧠 Key Features
 
-* `perception_pkg` → Contains camera, detector, display, and launch files
-
----
-
-### 🔹 Nodes
-
-#### 📷 Camera Node
-
-* `camera_node` → Uses GStreamer pipeline for CSI camera
-
-#### 🧠 Detector Node
-
-* `detector_node` → Runs TensorRT engine for fast inference
-
-#### 🧭 Tracker Node
-
-* `tracker_node` → Tracks detected objects across frames (ID assignment + persistence)
-
-#### 🖥️ Display Node
-
-* `display_node` → Visualizes detections (bounding boxes + labels + track IDs)
+* 📷 Real-time camera streaming (IMX219 - CSI)
+* 🧠 Object detection using YOLOv8
+* 🧭 Object tracking across frames
+* ⚡ Optimized inference using TensorRT (`.engine`)
+* 🚗 Movement decision-making (in progress)
+* 🔌 Motor control via Arduino Uno R3 (in progress)
+* 🤖 Deployment on Jetson Orin Nano
 
 ---
 
-### 🔹 Model Pipeline
+## 🏗️ System Architecture
 
-* `yolov8n.pt` → Base model (PyTorch)
-* `model.onnx` → Intermediate format
-* `model.engine` → TensorRT optimized engine
+Camera (Jetson) → Detection → Tracking → Decision Making → Arduino → Motors
+      ↓
+      TF + RViz2 Visualization
 
----
-
-### 🔹 Topics
-
-* `/camera/image_raw`
-* `/detections`
-* `/processed_image`
+Future Layer:
+Voice Input → AI Model → Action + Speech Output
 
 ---
 
-## ⚙️ Environment Setup
+## ⚙️ Tech Stack
 
-* Device: Jetson Orin Nano
-* OS: Ubuntu (JetPack SDK)
-* JetPack Version: 5.x (L4T)
-* ROS2: Humble
-* Camera: IMX219 (CSI)
+### Core
 
-### Key Setup
+* ROS2 (Humble)
+* Python
+
+### Perception
+
+* OpenCV
+* YOLOv8 (`yolov8n.pt`)
+* TensorRT (`.engine`)
+
+### Hardware
+
+* Jetson Orin Nano
+* IMX219 CSI Camera
+* Arduino Uno R3
+* 4WD / Ackermann chassis (in progress)
+* LiDAR (planned)
+
+### Communication
+
+* Serial communication (Jetson ↔ Arduino)
+
+---
+
+## 📂 Project Structure
 
 ```bash
-source /opt/ros/humble/setup.bash
-cd ~/perception_ws
+autonomous-robot/
+├── my_robot/        # Current robot development workspace
+├── README.md
+```
+
+---
+
+## 🚀 How to Run (Jetson)
+
+```bash
+cd ~/my_robot
 colcon build
 source install/setup.bash
-```
 
----
-
-## 🧪 Commands Used
-
-```bash
-# Launch full pipeline
 ros2 launch perception_pkg perception_pipeline.launch.py
-
-# Check camera
-gst-launch-1.0 nvarguscamerasrc ! nveglglessink
-
-# Debug
-ros2 topic list
-ros2 node list
 ```
 
 ---
 
-## 🚧 Challenges Faced & Solutions
+## 🔗 Development Journey (Detailed Repos)
 
-### 🔴 Issue 1: CSI Camera Not Working
+This project was built in structured phases:
 
-**Problem:**
-No output from camera
+### 📘 Phase 1: ROS2 Basics (WSL)
 
-**Root Cause:**
-Incorrect pipeline / camera not initialized
-
-**Solution:**
-
-```bash
-gst-launch-1.0 nvarguscamerasrc ! nveglglessink
-```
+* Nodes, topics, services
+* Environment setup and debugging
+  👉 Repo: *(https://github.com/swarghane/ROS2_Phase1_Practice_WS)*
 
 ---
 
-### 🔴 Issue 2: OpenCV Camera Access Fails
+### 📘 Phase 2: Perception Pipeline (WSL)
 
-**Problem:**
-`cv2.VideoCapture(0)` does not work
-
-**Root Cause:**
-CSI camera requires GStreamer, not direct access
-
-**Solution:**
-Used GStreamer pipeline inside OpenCV
+* Camera, detection, display nodes
+* TF + RViz2
+* USB camera issues (usbipd, permissions)
+  👉 Repo: *https://github.com/swarghane/ROS2_Phase2_Perception*
 
 ---
 
-### 🔴 Note: Model Format for Jetson
+### 📘 Phase 3: Jetson Deployment
 
-**Observation:**
-Using `.pt` (PyTorch) directly led to suboptimal performance and compatibility issues on Jetson.
-
-**Approach Used:**
-Switched to TensorRT `.engine` file, which is optimized for Jetson GPU and provides better performance and compatibility.
-
-**Final Setup:**
-
-* `yolov8n.pt` → Converted to `model.engine`
-* `model.engine` used directly in `detector_node`
+* IMX219 CSI camera integration
+* TensorRT optimization (`.engine`)
+* Real-time inference on Jetson
+  👉 Repo: *https://github.com/swarghane/ROS2_Phase3_*
 
 ---
 
-### 🔴 Issue 7: PyTorch Installation Failed on Jetson
+## 🚧 Current Challenges
 
-**Problem:**
-Unable to install/import PyTorch; CUDA not detected or import errors while running:
-
-```bash
-python3 -c "import torch; print(torch.cuda.is_available())"
-```
-
-**Observed Errors (examples):**
-
-* Import errors from `torch._C`
-* Missing CUDA / cuSPARSELt packages during install
-
-**Root Cause:**
-
-* Version mismatch between JetPack, CUDA, and PyTorch
-* Jetson requires specific pre-built wheels (not standard pip install)
-
-**Solution (Using Dusty-NV Containers):**
-Used NVIDIA Jetson containers from Dusty-NV (jetson-containers) which provide pre-configured environments
-
-```bash
-# Install Docker (if not already)
-sudo apt update
-sudo apt install docker.io
-
-# Clone Dusty-NV jetson containers repo
-git clone https://github.com/dusty-nv/jetson-containers.git
-cd jetson-containers
-
-# Run PyTorch container
-./run.sh dustynv/pytorch:latest
-```
-
-**Verification:**
-
-```bash
-python3 -c "import torch; print(torch.cuda.is_available())"
-```
+* Integrating perception with motor control
+* Real-time decision-making for movement
+* Reliable tracking for follow-me behavior
 
 ---
 
-### 🔴 Issue 8: TensorRT / CUDA Library Errors
+## 📊 Current Status
 
-**Problem:**
-Errors like missing libraries during setup (e.g., `libcusparselt` not found) or runtime failures
-
-**Root Cause:**
-Incomplete/incorrect CUDA or JetPack components on host
-
-**Solution:**
-
-* Relied on Docker environment with pre-installed compatible libraries
-* Avoided manual dependency resolution on host
+* ✅ Perception pipeline complete (Jetson)
+* 🔄 Motor control integration in progress
+* 🔄 Robot chassis selection (4WD vs Ackermann)
 
 ---
 
-## 📊 Results
+## 🔮 Future Roadmap
 
-* Achieved near real-time detection
-* Significant FPS improvement using TensorRT
-* Stable camera + detection pipeline on hardware
+### Phase 4: Mobility
 
----
+* Motor control + movement logic
+* Obstacle avoidance using LiDAR
 
-## 📊 Learnings
+### Phase 5: Human Interaction
 
-* Learned Jetson hardware ecosystem
-* Understood GStreamer for CSI cameras
-* Learned TensorRT optimization pipeline
-* Improved debugging in embedded systems
+* Voice input (mic)
+* Speech output (speaker)
+* Scene description
 
----
+### Phase 6: Intelligence
 
-## 🔮 Future Improvements
-
-* Integrate depth estimation
-* Optimize further using FP16 / INT8
-
----
-
-## 📂 Folder Structure
-
-```
-perception_ws/
-├── src/
-│   └── perception_pkg
-├── build/
-├── install/
-└── log/
-```
+* Follow-me mode
+* Conversational AI integration
 
 ---
 
 ## 💡 Key Takeaway
 
-This phase transitioned the project from a simulated WSL environment to real embedded hardware, focusing on performance optimization and real-time inference.
+This project demonstrates a structured journey from ROS2 fundamentals to building a real-world autonomous robot with perception, tracking, and decision-making capabilities.
 
 ---
