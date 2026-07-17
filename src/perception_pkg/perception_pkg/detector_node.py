@@ -25,7 +25,7 @@ class DetectorNode(Node):
         # -----------------------------
         # Parameters
         # -----------------------------
-        self.declare_parameter('model_path', '/workspace/src/perception_pkg/perception_pkg/yolov8n.engine')
+        self.declare_parameter('model_path', '/workspace/models/vision/yolov8n.engine')
         self.declare_parameter('conf_threshold', 0.6)
         self.declare_parameter('imgsz', 640)
         self.declare_parameter('persistence_time', 0.3)
