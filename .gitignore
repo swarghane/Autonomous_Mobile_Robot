@@ -7,3 +7,7 @@ __pycache__/
 *.bag
 .env
 .vscode/
+models/
+*.pt
+*.onnx
+*.engine
