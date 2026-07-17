@@ -80,13 +80,6 @@ class DecisionNode(Node):
             Bool, '/audio_enabled',
             self.audio_enabled_callback, qos
         )
-        # Highest-priority override from watchdog_node — takes precedence
-        # over voice_mode/maneuvers/follow entirely while active.
-        self.estop_active = False
-        self.estop_sub = self.create_subscription(
-            Bool, '/emergency_stop',
-            self.emergency_stop_callback, qos
-        )
 
         self.pub = self.create_publisher(Twist, '/cmd_vel', qos)
 
@@ -113,14 +106,6 @@ class DecisionNode(Node):
     # ─────────────────────────────────────────────────────
     # Voice callback — maps STT commands to voice_mode
     # ─────────────────────────────────────────────────────
-
-    def emergency_stop_callback(self, msg: Bool):
-        self.estop_active = msg.data
-        if self.estop_active:
-            self._stop()
-            self.get_logger().error('🛑 [WATCHDOG] Emergency stop ACTIVE — overriding all motion')
-        else:
-            self.get_logger().info('✅ [WATCHDOG] Emergency stop CLEARED — resuming normal operation')
 
     def audio_enabled_callback(self, msg: Bool):
         if not msg.data:
@@ -210,10 +195,6 @@ class DecisionNode(Node):
         )
 
     def _control_loop(self):
-        if self.estop_active:
-            self._stop()
-            return
-
         if self.voice_mode == 'MANEUVER':
             elapsed = time.time() - self.maneuver_start_time
             if elapsed >= self.maneuver_duration:
@@ -236,11 +217,6 @@ class DecisionNode(Node):
     # ─────────────────────────────────────────────────────
 
     def detection_callback(self, msg):
-        # Watchdog override takes absolute priority.
-        if self.estop_active:
-            self._stop()
-            return
-
         # Only drive from detections while in AUTO. STOP/MANEUVER are
         # handled by the control loop above.
         if self.voice_mode != 'AUTO':

@@ -2,7 +2,7 @@ import os
 os.environ.setdefault('XDG_RUNTIME_DIR', '/run/user/1000')
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Float32, Bool
+from std_msgs.msg import String, Float32
 
 import threading
 import asyncio
@@ -50,8 +50,6 @@ class TTSNode(Node):
         self.cache_dir = tempfile.mkdtemp(prefix="tts_cache_")
         self.cached_phrases = {
             'WAKE_WORD_DETECTED': 'Yes?',
-            'AUDIO_ON': 'Voice commands on.',
-            'AUDIO_OFF': 'Voice commands off.',
         }
         self.cache_paths = {}   # phrase text -> filepath
 
@@ -80,31 +78,7 @@ class TTSNode(Node):
             10
         )
 
-        # Speak a confirmation whenever audio mode is toggled (webpage
-        # button or raised-hand gesture), so it's audible even though
-        # this doesn't depend on STT being awake.
-        self._last_audio_enabled = None
-        self.create_subscription(
-            Bool,
-            '/audio_enabled',
-            self._audio_enabled_callback,
-            10
-        )
-
         self.get_logger().info("★ Edge-TTS + ffplay + lip-sync ready")
-
-    def _audio_enabled_callback(self, msg: Bool):
-        enabled = msg.data
-        if enabled == self._last_audio_enabled:
-            return   # avoid repeating on redundant publishes of the same state
-        self._last_audio_enabled = enabled
-
-        text = "Voice commands on." if enabled else "Voice commands off."
-        if self.speech_q:
-            self.loop.call_soon_threadsafe(
-                self.speech_q.put_nowait,
-                text
-            )
 
     def response_callback(self, msg):
         if self.speech_q:

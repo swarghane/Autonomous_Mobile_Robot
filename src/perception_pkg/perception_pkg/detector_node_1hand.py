@@ -79,8 +79,7 @@ class DetectorNode(Node):
         # Gesture / audio-enable state
         # -----------------------------
         self.audio_enabled = True          # mirrors webpage toggle; default ON
-        self.left_hand_raised_since = None   # left hand  -> audio OFF
-        self.right_hand_raised_since = None  # right hand -> audio ON
+        self.hand_raised_since = None
         self.last_gesture_trigger = 0.0
 
         # -----------------------------
@@ -175,51 +174,50 @@ class DetectorNode(Node):
 
             self.process_frame(msg)
 
-    def _check_hand_raised(self, keypoints_xy, keypoints_conf, wrist_idx, shoulder_idx):
-        if keypoints_conf[wrist_idx] < KP_CONF_MIN or keypoints_conf[shoulder_idx] < KP_CONF_MIN:
-            return False
-        return keypoints_xy[wrist_idx][1] < keypoints_xy[shoulder_idx][1]
+    def _check_raised_hand(self, keypoints_xy, keypoints_conf):
+        """Return True if either wrist is clearly above its shoulder."""
+        def kp_ok(idx):
+            return keypoints_conf[idx] >= KP_CONF_MIN
 
-    def _handle_gesture(self, left_raised, right_raised):
+        raised = False
+        if kp_ok(KP_LEFT_WRIST) and kp_ok(KP_LEFT_SHOULDER):
+            if keypoints_xy[KP_LEFT_WRIST][1] < keypoints_xy[KP_LEFT_SHOULDER][1]:
+                raised = True
+        if kp_ok(KP_RIGHT_WRIST) and kp_ok(KP_RIGHT_SHOULDER):
+            if keypoints_xy[KP_RIGHT_WRIST][1] < keypoints_xy[KP_RIGHT_SHOULDER][1]:
+                raised = True
+        return raised
+
+    def _handle_gesture(self, any_hand_raised):
         now = time.time()
 
-        # Track each hand's hold duration independently.
-        self.left_hand_raised_since = now if (left_raised and self.left_hand_raised_since is None) else (
-            self.left_hand_raised_since if left_raised else None
-        )
-        self.right_hand_raised_since = now if (right_raised and self.right_hand_raised_since is None) else (
-            self.right_hand_raised_since if right_raised else None
-        )
+        if not any_hand_raised:
+            self.hand_raised_since = None
+            return
 
+        if self.hand_raised_since is None:
+            self.hand_raised_since = now
+            return
+
+        held_for = now - self.hand_raised_since
+        if held_for < self.gesture_hold_sec:
+            return
+
+        # Only ever turns audio ON, and only if currently OFF, and respects
+        # a cooldown so a continued raised hand doesn't spam re-triggers.
+        if self.audio_enabled:
+            return
         if (now - self.last_gesture_trigger) < self.gesture_cooldown_sec:
             return
 
-        # Left hand held long enough -> turn audio OFF (only if currently ON)
-        if (self.left_hand_raised_since is not None
-                and (now - self.left_hand_raised_since) >= self.gesture_hold_sec
-                and self.audio_enabled):
-            self.audio_enabled = False
-            self.last_gesture_trigger = now
-            self.left_hand_raised_since = None
-            self.right_hand_raised_since = None
-            msg = Bool()
-            msg.data = False
-            self.audio_pub.publish(msg)
-            self.get_logger().info('🖐️ Left-hand gesture detected — audio disabled')
-            return
+        self.audio_enabled = True
+        self.last_gesture_trigger = now
+        self.hand_raised_since = None
 
-        # Right hand held long enough -> turn audio ON (only if currently OFF)
-        if (self.right_hand_raised_since is not None
-                and (now - self.right_hand_raised_since) >= self.gesture_hold_sec
-                and not self.audio_enabled):
-            self.audio_enabled = True
-            self.last_gesture_trigger = now
-            self.left_hand_raised_since = None
-            self.right_hand_raised_since = None
-            msg = Bool()
-            msg.data = True
-            self.audio_pub.publish(msg)
-            self.get_logger().info('🖐️ Right-hand gesture detected — audio re-enabled')
+        msg = Bool()
+        msg.data = True
+        self.audio_pub.publish(msg)
+        self.get_logger().info('🖐️ Raised-hand gesture detected — audio re-enabled')
 
     def process_frame(self, msg):
         start_time = time.time()
@@ -232,8 +230,7 @@ class DetectorNode(Node):
             detection_array = Detection2DArray()
             detection_array.header = msg.header
             detection_found = False
-            any_left_raised = False
-            any_right_raised = False
+            any_hand_raised = False
 
             for result in results:
                 if result.boxes is None:
@@ -273,12 +270,10 @@ class DetectorNode(Node):
 
                     # ── Gesture check for this person ──
                     if kp_xy_all is not None and kp_conf_all is not None and i < len(kp_xy_all):
-                        if self._check_hand_raised(kp_xy_all[i], kp_conf_all[i], KP_LEFT_WRIST, KP_LEFT_SHOULDER):
-                            any_left_raised = True
-                        if self._check_hand_raised(kp_xy_all[i], kp_conf_all[i], KP_RIGHT_WRIST, KP_RIGHT_SHOULDER):
-                            any_right_raised = True
+                        if self._check_raised_hand(kp_xy_all[i], kp_conf_all[i]):
+                            any_hand_raised = True
 
-            self._handle_gesture(any_left_raised, any_right_raised)
+            self._handle_gesture(any_hand_raised)
 
             # Anti-flicker persistence
             current_time = time.time()

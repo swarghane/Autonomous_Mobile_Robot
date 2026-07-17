@@ -1,7 +1,7 @@
 import time
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Bool, Bool
+from std_msgs.msg import String
 import whisper
 import sounddevice as sd
 import numpy as np
@@ -33,25 +33,6 @@ class STTNode(Node):
         )
         self.is_tts_speaking = False
 
-        # Audio ON/OFF toggle (webpage button or raised-hand gesture).
-        # Default True so the robot listens normally until someone
-        # explicitly turns it off.
-        self.audio_enabled = True
-        self.create_subscription(
-            Bool, '/audio_enabled',
-            self._audio_enabled_callback, 10
-        )
-
-        # Audio ON/OFF trigger (e.g. webpage dashboard button). Defaults
-        # to enabled so behaviour is unchanged unless someone actively
-        # toggles it off (e.g. during active person-following, to stop
-        # false wake-word triggers).
-        self.audio_enabled = True
-        self.create_subscription(
-            Bool, '/audio_enabled',
-            self._audio_enabled_callback, 10
-        )
-
         self.get_logger().info('Loading Whisper...')
         self.model = whisper.load_model('tiny.en').to('cuda')
 
@@ -82,16 +63,6 @@ class STTNode(Node):
             self._flush_queue()
             self.is_tts_speaking = False
             self.get_logger().info('🔊 TTS Idle: STT resumed.')
-
-    def _audio_enabled_callback(self, msg: Bool):
-        was_enabled = self.audio_enabled
-        self.audio_enabled = msg.data
-        if was_enabled and not self.audio_enabled:
-            self.get_logger().info('🔇 Audio mode OFF — ignoring wake word until re-enabled.')
-            self._flush_queue()
-        elif not was_enabled and self.audio_enabled:
-            self.get_logger().info('🔊 Audio mode ON — listening for "Vector" again.')
-            self._flush_queue()
 
     def _flush_queue(self):
         while not self.audio_q.empty():
@@ -179,7 +150,7 @@ class STTNode(Node):
 
         remaining = max_chunks - len(buf)
         for _ in range(remaining):
-            if self.is_tts_speaking or not self.audio_enabled:
+            if self.is_tts_speaking:
                 return np.array([], dtype=np.float32)
 
             try:
@@ -214,15 +185,6 @@ class STTNode(Node):
         ]
 
         while rclpy.ok():
-
-            # Audio mode OFF (webpage toggle / gesture) — drain mic input
-            # and skip wake-word detection entirely until re-enabled.
-            if not self.audio_enabled:
-                try:
-                    self.audio_q.get(timeout=0.1)
-                except queue.Empty:
-                    pass
-                continue
 
             # Drain queue while TTS is speaking
             if self.is_tts_speaking:

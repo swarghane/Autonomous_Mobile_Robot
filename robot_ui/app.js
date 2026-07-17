@@ -246,3 +246,36 @@ trackingListener.subscribe((message) => {
         ctx.fillText(labelText, x + 5, y - 6);
     });
 });
+
+// ── Audio ON/OFF toggle ──────────────────────────────────
+let audioEnabled = true;
+
+const audioEnabledPub = new ROSLIB.Topic({
+    ros : ros,
+    name : '/audio_enabled',
+    messageType : 'std_msgs/Bool'
+});
+
+const audioEnabledSub = new ROSLIB.Topic({
+    ros : ros,
+    name : '/audio_enabled',
+    messageType : 'std_msgs/Bool'
+});
+
+function updateAudioButton() {
+    const btn = document.getElementById('audio-toggle-btn');
+    btn.innerText = audioEnabled ? 'Audio: ON' : 'Audio: OFF';
+    btn.style.background = audioEnabled ? '#00ffcc' : '#ff4444';
+}
+
+audioEnabledSub.subscribe((msg) => {
+    audioEnabled = msg.data;
+    updateAudioButton();   // catches gesture-triggered changes too
+});
+
+function toggleAudio() {
+    audioEnabled = !audioEnabled;
+    updateAudioButton();   // instant feedback, doesn't wait on rosbridge
+    const msg = new ROSLIB.Message({ data: audioEnabled });
+    audioEnabledPub.publish(msg);
+}

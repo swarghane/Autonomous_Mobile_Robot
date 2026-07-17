@@ -12,7 +12,7 @@ WEB_PID=$!
 cd ~/   # or wherever your workspace root is, for later commands
 # 3. Start your existing, persistent Docker container
 echo "🐳 Waking up container: my_robotics_env..."
-docker restart my_robotics_env
+docker start my_robotics_env
 # 4. Set up cleanup BEFORE the blocking foreground command
 function ctrl_c() {
     echo ""

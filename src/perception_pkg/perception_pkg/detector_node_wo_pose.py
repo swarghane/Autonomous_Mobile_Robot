@@ -1,3 +1,6 @@
+# This code uses Multi-Threaded Executor (MTE) and a dedicated worker thread to process frames as soon as they arrive, maximizing throughput and minimizing latency. 
+# It also includes robust shutdown handling to ensure clean exit without hanging threads.
+
 import time
 import threading
 import cv2
@@ -10,18 +13,9 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import Bool
 from cv_bridge import CvBridge
 from ultralytics import YOLO
 from vision_msgs.msg import Detection2DArray, Detection2D, ObjectHypothesisWithPose
-
-
-# COCO keypoint indices (standard YOLOv8-pose ordering)
-KP_LEFT_SHOULDER  = 5
-KP_RIGHT_SHOULDER = 6
-KP_LEFT_WRIST     = 9
-KP_RIGHT_WRIST    = 10
-KP_CONF_MIN       = 0.4   # ignore low-confidence keypoints
 
 
 class DetectorNode(Node):
@@ -31,36 +25,27 @@ class DetectorNode(Node):
         # -----------------------------
         # Parameters
         # -----------------------------
-        # NOTE: swapped to the pose engine — gives person boxes (for
-        # tracking/following, unchanged) AND keypoints (for gestures) from
-        # one model, instead of running a second model alongside it.
-        self.declare_parameter('model_path', '/workspace/models/vision/yolov8n-pose.engine')
+        self.declare_parameter('model_path', '/workspace/models/vision/yolov8n.engine')
         self.declare_parameter('conf_threshold', 0.6)
         self.declare_parameter('imgsz', 640)
         self.declare_parameter('persistence_time', 0.3)
-
-        # Gesture (raised-hand) tuning
-        self.declare_parameter('gesture_hold_sec', 1.0)     # how long hand must stay raised
-        self.declare_parameter('gesture_cooldown_sec', 5.0) # min gap between re-triggers
 
         self.model_path = self.get_parameter('model_path').value
         self.conf_threshold = float(self.get_parameter('conf_threshold').value)
         self.imgsz = int(self.get_parameter("imgsz").value)
         self.persistence_time = float(self.get_parameter('persistence_time').value)
-        self.gesture_hold_sec = float(self.get_parameter('gesture_hold_sec').value)
-        self.gesture_cooldown_sec = float(self.get_parameter('gesture_cooldown_sec').value)
 
         self.bridge = CvBridge()
 
         # -----------------------------
-        # Load TensorRT model (pose)
+        # Load TensorRT model
         # -----------------------------
-        self.model = YOLO(self.model_path, task='pose')
+        self.model = YOLO(self.model_path, task='detect')
 
         dummy = np.zeros((self.imgsz, self.imgsz, 3), dtype=np.uint8)
         self.model(dummy, imgsz=self.imgsz, verbose=False)
 
-        self.get_logger().info(f'🚀 Pose model loaded: {self.model_path}')
+        self.get_logger().info(f'🚀 Model loaded: {self.model_path}')
 
         # -----------------------------
         # Threading & Events
@@ -74,15 +59,7 @@ class DetectorNode(Node):
         # -----------------------------
         self.last_detections = None
         self.last_detection_time = 0
-
-        # -----------------------------
-        # Gesture / audio-enable state
-        # -----------------------------
-        self.audio_enabled = True          # mirrors webpage toggle; default ON
-        self.left_hand_raised_since = None   # left hand  -> audio OFF
-        self.right_hand_raised_since = None  # right hand -> audio ON
-        self.last_gesture_trigger = 0.0
-
+        
         # -----------------------------
         # QoS Profiles
         # -----------------------------
@@ -100,13 +77,6 @@ class DetectorNode(Node):
             durability=DurabilityPolicy.VOLATILE
         )
 
-        audio_qos = QoSProfile(
-            history=HistoryPolicy.KEEP_LAST,
-            depth=1,
-            reliability=ReliabilityPolicy.RELIABLE,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL   # late subscribers get last value
-        )
-
         # -----------------------------
         # Subscriber (Raw Image Setup)
         # -----------------------------
@@ -118,22 +88,14 @@ class DetectorNode(Node):
             callback_group=self.callback_group
         )
 
-        # Track the webpage/manual toggle so the gesture only ever flips
-        # OFF -> ON, never fights a manual OFF.
-        self.audio_state_sub = self.create_subscription(
-            Bool, '/audio_enabled', self._audio_state_callback, audio_qos
-        )
-
         # -----------------------------
-        # Publishers
+        # Publisher
         # -----------------------------
         self.pub_ = self.create_publisher(
             Detection2DArray,
             '/detections',
             detection_qos
         )
-
-        self.audio_pub = self.create_publisher(Bool, '/audio_enabled', audio_qos)
 
         # -----------------------------
         # Worker Thread Initialization
@@ -146,10 +108,7 @@ class DetectorNode(Node):
         self.frame_count = 0
         self.last_time = time.time()
 
-        self.get_logger().info('✅ YOLO Pose Detector Node Started')
-
-    def _audio_state_callback(self, msg: Bool):
-        self.audio_enabled = msg.data
+        self.get_logger().info('✅ YOLO Detector Node Started')
 
     def image_callback(self, msg):
         if not self.running:
@@ -158,10 +117,11 @@ class DetectorNode(Node):
         self.frame_ready_event.set()
 
     def worker_loop(self):
+        # We also check rclpy.utilities.ok() directly to ensure the context is valid
         while rclpy.utilities.ok() and self.running:
             if not self.frame_ready_event.wait(timeout=0.1):
                 continue
-
+            
             self.frame_ready_event.clear()
 
             if not self.running or not rclpy.utilities.ok():
@@ -175,82 +135,31 @@ class DetectorNode(Node):
 
             self.process_frame(msg)
 
-    def _check_hand_raised(self, keypoints_xy, keypoints_conf, wrist_idx, shoulder_idx):
-        if keypoints_conf[wrist_idx] < KP_CONF_MIN or keypoints_conf[shoulder_idx] < KP_CONF_MIN:
-            return False
-        return keypoints_xy[wrist_idx][1] < keypoints_xy[shoulder_idx][1]
-
-    def _handle_gesture(self, left_raised, right_raised):
-        now = time.time()
-
-        # Track each hand's hold duration independently.
-        self.left_hand_raised_since = now if (left_raised and self.left_hand_raised_since is None) else (
-            self.left_hand_raised_since if left_raised else None
-        )
-        self.right_hand_raised_since = now if (right_raised and self.right_hand_raised_since is None) else (
-            self.right_hand_raised_since if right_raised else None
-        )
-
-        if (now - self.last_gesture_trigger) < self.gesture_cooldown_sec:
-            return
-
-        # Left hand held long enough -> turn audio OFF (only if currently ON)
-        if (self.left_hand_raised_since is not None
-                and (now - self.left_hand_raised_since) >= self.gesture_hold_sec
-                and self.audio_enabled):
-            self.audio_enabled = False
-            self.last_gesture_trigger = now
-            self.left_hand_raised_since = None
-            self.right_hand_raised_since = None
-            msg = Bool()
-            msg.data = False
-            self.audio_pub.publish(msg)
-            self.get_logger().info('🖐️ Left-hand gesture detected — audio disabled')
-            return
-
-        # Right hand held long enough -> turn audio ON (only if currently OFF)
-        if (self.right_hand_raised_since is not None
-                and (now - self.right_hand_raised_since) >= self.gesture_hold_sec
-                and not self.audio_enabled):
-            self.audio_enabled = True
-            self.last_gesture_trigger = now
-            self.left_hand_raised_since = None
-            self.right_hand_raised_since = None
-            msg = Bool()
-            msg.data = True
-            self.audio_pub.publish(msg)
-            self.get_logger().info('🖐️ Right-hand gesture detected — audio re-enabled')
-
     def process_frame(self, msg):
         start_time = time.time()
 
         try:
             frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-
+            
+            # Direct pass to model (Resizing skipped; handled by GStreamer camera node)
             results = self.model(frame, imgsz=self.imgsz, verbose=False)
 
             detection_array = Detection2DArray()
             detection_array.header = msg.header
             detection_found = False
-            any_left_raised = False
-            any_right_raised = False
 
             for result in results:
                 if result.boxes is None:
                     continue
 
-                # Keypoints array aligns index-for-index with result.boxes
-                kp_xy_all   = result.keypoints.xy.cpu().numpy() if result.keypoints is not None else None
-                kp_conf_all = result.keypoints.conf.cpu().numpy() if (result.keypoints is not None and result.keypoints.conf is not None) else None
-
-                for i, box in enumerate(result.boxes):
+                for box in result.boxes:
                     confidence = float(box.conf[0].item())
 
                     if confidence < self.conf_threshold:
                         continue
 
                     class_index = int(box.cls[0].item())
-                    class_name = self.model.names[class_index]  # 'person' for pose models
+                    class_name = self.model.names[class_index]
 
                     xywh = box.xywh[0].cpu().numpy()
                     cx, cy, bw, bh = xywh
@@ -270,15 +179,6 @@ class DetectorNode(Node):
                     detection.results.append(hypothesis)
                     detection_array.detections.append(detection)
                     detection_found = True
-
-                    # ── Gesture check for this person ──
-                    if kp_xy_all is not None and kp_conf_all is not None and i < len(kp_xy_all):
-                        if self._check_hand_raised(kp_xy_all[i], kp_conf_all[i], KP_LEFT_WRIST, KP_LEFT_SHOULDER):
-                            any_left_raised = True
-                        if self._check_hand_raised(kp_xy_all[i], kp_conf_all[i], KP_RIGHT_WRIST, KP_RIGHT_SHOULDER):
-                            any_right_raised = True
-
-            self._handle_gesture(any_left_raised, any_right_raised)
 
             # Anti-flicker persistence
             current_time = time.time()
@@ -301,22 +201,28 @@ class DetectorNode(Node):
                 self.last_time = now
                 latency = (time.time() - start_time) * 1000
 
+                # CRITICAL: Double-check context state right before invoking ROS logs
                 if rclpy.utilities.ok() and self.running:
                     self.get_logger().info(
                         f'⚡ FPS={fps:.2f} | Latency={latency:.1f} ms | Detections={len(detection_array.detections)}'
                     )
 
         except Exception as e:
+            # Safely capture log errors only if ROS is completely up
             if rclpy.utilities.ok() and self.running:
                 self.get_logger().error(f'❌ Detection error: {e}')
 
     def destroy_node(self):
+        # 1. Turn off our internal loop execution immediately
         self.running = False
+        
+        # 2. Free any thread lingering on a wait condition
         self.frame_ready_event.set()
-
+        
+        # 3. Synchronize background worker cleanup
         if hasattr(self, 'worker_thread') and self.worker_thread.is_alive():
             self.worker_thread.join(timeout=0.5)
-
+            
         super().destroy_node()
 
 
@@ -330,7 +236,7 @@ def main(args=None):
     try:
         executor.spin()
     except KeyboardInterrupt:
-        pass
+        pass 
     finally:
         node.destroy_node()
         if rclpy.ok():

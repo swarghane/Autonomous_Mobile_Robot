@@ -23,6 +23,8 @@ class DecisionNode(Node):
         self.obstacle_detected   = False
         self.front_distance      = 999.0
         self.free_direction      = 'LEFT'
+        self.voice_mode          = 'AUTO'
+        self.pre_listen_mode     = 'AUTO'
 
         # ── Voice / mode state ────────────────────────────
         # voice_mode: 'AUTO'      — roam freely, avoiding obstacles (default)
@@ -73,20 +75,6 @@ class DecisionNode(Node):
             String, '/voice_command',
             self.voice_callback, qos
         )
-        # When audio (STT wake-word listening) is toggled OFF, voice control
-        # isn't available, so auto-switch to following. When it comes back
-        # ON, hand control back to voice (revert to plain roam/AUTO).
-        self.audio_sub = self.create_subscription(
-            Bool, '/audio_enabled',
-            self.audio_enabled_callback, qos
-        )
-        # Highest-priority override from watchdog_node — takes precedence
-        # over voice_mode/maneuvers/follow entirely while active.
-        self.estop_active = False
-        self.estop_sub = self.create_subscription(
-            Bool, '/emergency_stop',
-            self.emergency_stop_callback, qos
-        )
 
         self.pub = self.create_publisher(Twist, '/cmd_vel', qos)
 
@@ -114,41 +102,20 @@ class DecisionNode(Node):
     # Voice callback — maps STT commands to voice_mode
     # ─────────────────────────────────────────────────────
 
-    def emergency_stop_callback(self, msg: Bool):
-        self.estop_active = msg.data
-        if self.estop_active:
-            self._stop()
-            self.get_logger().error('🛑 [WATCHDOG] Emergency stop ACTIVE — overriding all motion')
-        else:
-            self.get_logger().info('✅ [WATCHDOG] Emergency stop CLEARED — resuming normal operation')
-
-    def audio_enabled_callback(self, msg: Bool):
-        if not msg.data:
-            # Audio just went OFF — no voice control available, so follow
-            # the person automatically instead of just roaming blind.
-            self.voice_mode      = 'AUTO'
-            self.follow_enabled  = True
-            self.target_id       = None
-            self.last_target_time = time.time()
-            self.get_logger().info('🔇 Audio OFF — auto-switching to FOLLOW mode')
-        else:
-            # Audio back ON — hand control back to voice; revert to plain
-            # roam until the person says "follow me" again.
-            self.voice_mode      = 'AUTO'
-            self.follow_enabled  = False
-            self.get_logger().info('🔊 Audio ON — voice control restored, back to roam')
-
     def voice_callback(self, msg: String):
         cmd = msg.data.strip().upper()
 
         if cmd == 'WAKE_WORD_DETECTED':
-            self.voice_mode = 'STOP'
+            if self.voice_mode != 'LISTENING':
+                self.pre_listen_mode = self.voice_mode
+            self.voice_mode = 'LISTENING'
             self._stop()
             self.get_logger().info('🎤 [VOICE] Wake word — motors stopped, awaiting command')
             return
 
         if cmd == 'RESUME':
-            self.voice_mode = 'AUTO'
+            if self.voice_mode == 'LISTENING':
+                self.voice_mode = self.pre_listen_mode
             self.get_logger().info('⏱ [VOICE] No command — resuming AUTO/ROAM')
             return
 
@@ -177,9 +144,10 @@ class DecisionNode(Node):
             return
 
         # Unrecognised token — fall back to AUTO/ROAM (follow state preserved)
-        self.get_logger().warn(f'[VOICE] Unrecognised: "{cmd}" — staying/returning to AUTO')
-        if self.voice_mode not in ('AUTO',):
-            self.voice_mode = 'AUTO'
+        # self.get_logger().warn(f'[VOICE] Unrecognised: "{cmd}" — staying/returning to AUTO')
+        # if self.voice_mode not in ('AUTO',):
+        #     self.voice_mode = 'AUTO'
+        self.get_logger().info(f'[VOICE] Ignoring unrecognized command: "{cmd}"')
 
     # ─────────────────────────────────────────────────────
     # Timed maneuvers: turn ~90°, move ~8" forward/backward
@@ -210,10 +178,6 @@ class DecisionNode(Node):
         )
 
     def _control_loop(self):
-        if self.estop_active:
-            self._stop()
-            return
-
         if self.voice_mode == 'MANEUVER':
             elapsed = time.time() - self.maneuver_start_time
             if elapsed >= self.maneuver_duration:
@@ -227,6 +191,8 @@ class DecisionNode(Node):
         elif self.voice_mode == 'STOP':
             self._stop()
         # AUTO mode motion is driven by detection_callback (needs live detections)
+        elif self.voice_mode in ('STOP', 'LISTENING'):
+            self._stop()
 
     def _stop(self):
         self.pub.publish(Twist())
@@ -236,11 +202,6 @@ class DecisionNode(Node):
     # ─────────────────────────────────────────────────────
 
     def detection_callback(self, msg):
-        # Watchdog override takes absolute priority.
-        if self.estop_active:
-            self._stop()
-            return
-
         # Only drive from detections while in AUTO. STOP/MANEUVER are
         # handled by the control loop above.
         if self.voice_mode != 'AUTO':
