@@ -1,0 +1,207 @@
+* { 
+    box-sizing: border-box; 
+}
+
+body, html { 
+    margin: 0; 
+    padding: 0; 
+    width: 100%; 
+    height: 100%; 
+    background-color: #000000; 
+    overflow: hidden;
+    font-family: sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Base style for full screen modules */
+.mode-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.hidden { 
+    display: none !important; 
+}
+
+/* --- EMOTION MODE --- */
+.face-wrapper {
+    display: flex;
+    flex-direction: column; /* Stack eyes on top of mouth */
+    align-items: center;
+    justify-content: center;
+    gap: 60px; /* Space between eyes and mouth */
+    width: 80%;
+    max-width: 600px;
+    height: 320px; 
+    position: relative;
+}
+
+.eyes-row {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+}
+
+.eye {
+    width: 120px;
+    height: 120px;
+    background-color: #00ffcc;
+    border-radius: 50%;
+    transition: all 0.25s ease-in-out;
+    box-shadow: 0 0 35px #00ffcc;
+}
+
+/* Eye Shapes for Emotions */
+.eye.happy { border-radius: 120px 120px 0 0; transform: scaleY(0.75); }
+.eye.sad { border-radius: 0 0 120px 120px; transform: translateY(10px) scaleY(0.75); }
+.eye.thinking { transform: translateY(-15px) scaleX(1.1) scaleY(0.8); }
+.eye.blink { transform: scaleY(0.05); background-color: #00aa88; box-shadow: 0 0 10px #00aa88; }
+
+/* --- THE MOUTH (Curved Vector Line Style) --- */
+.mouth {
+    width: 180px;
+    height: 40px;
+    border: 14px solid #00ffcc; /* Matches eye color */
+    border-top: transparent; /* Makes it a curved arc/smile line */
+    border-left: transparent;
+    border-right: transparent;
+    border-radius: 0 0 50% 50%; /* Smooth curved bottom */
+    transition: all 0.25s ease-in-out;
+    box-shadow: drop-shadow(0 0 15px #00ffcc);
+    position: relative;
+    top: 0;
+}
+
+/* Mouth Shapes based on ROS data */
+.mouth.neutral {
+    /* Slight curve upward like a subtle, friendly rest state */
+    width: 150px;
+    height: 28px;
+    border-radius: 0 0 40% 40%;
+}
+
+.mouth.happy {
+    /* Big wide smile arc */
+    width: 180px;
+    height: 50px;
+    border-radius: 0 0 50% 50%;
+    transform: scale(1.1);
+}
+
+.mouth.sad {
+    /* Flips the arc upside down into a frown */
+    border-top: 14px solid #00ffcc;
+    border-bottom: transparent;
+    border-radius: 50% 50% 0 0;
+    height: 30px;
+    transform: translateY(15px);
+}
+
+.mouth.thinking {
+    /* Flat horizontal line */
+    width: 120px;
+    height: 0px;
+    border-radius: 0;
+    border-bottom: 14px solid #00ffcc;
+}
+
+/* Talking Animation Keyframes */
+@keyframes speak {
+    0% { height: 15px; border-radius: 0 0 30% 30%; }
+    50% { height: 45px; border-radius: 40%; }
+    100% { height: 15px; border-radius: 0 0 30% 30%; }
+}
+
+.mouth.talking {
+    animation: speak 0.2s infinite alternate ease-in-out;
+}
+
+/* --- VISION MODE --- */
+#vision-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; 
+}
+
+/* --- DEV MENU OVERLAY --- */
+#menu-trigger {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 60px;
+    height: 60px;
+    z-index: 9999;
+    opacity: 0.05;
+    background: white;
+    border-radius: 0 0 50% 0;
+}
+
+#menu-overlay {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    background: rgba(25, 25, 25, 0.95);
+    border: 1px solid #333;
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 10000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+    color: white;
+}
+
+.menu-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    background: #00ffcc;
+    color: black;
+    border: none;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.close-btn {
+    background: #ff4444;
+    color: white;
+    margin-top: 15px;
+}
+
+/* Fail-safe visual rotation backup if system lock is slow */
+@media screen and (orientation: portrait) {
+    #face-container {
+        transform: rotate(90deg);
+        transform-origin: center;
+        width: 100vh;
+        height: 100vw;
+    }
+}
+
+/* --- CANVAS LAYER OVERLAY --- */
+.video-canvas-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#camera-stream {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+#tracking-canvas {
+    position: absolute;
+    pointer-events: none; /* Allows click-through interaction to target the menu */
+}

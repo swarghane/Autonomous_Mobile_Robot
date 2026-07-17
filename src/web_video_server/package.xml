@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>web_video_server</name>
+  <version>3.1.1</version>
+  <description>HTTP Streaming of ROS Image Topics in Multiple Formats</description>
+
+  <maintainer email="blazej@fictionlab.pl">Błażej Sowa</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/web_video_server</url>
+  <url type="bugtracker">https://github.com/RobotWebTools/web_video_server/issues</url>
+  <url type="repository">https://github.com/RobotWebTools/web_video_server</url>
+
+  <author email="mwills@wpi.edu">Mitchell Wills</author>
+
+  <buildtool_depend>ament_cmake_ros</buildtool_depend>
+  <buildtool_depend>pkg-config</buildtool_depend>
+
+  <!-- Dependencies present in installed header files -->
+  <depend>async_web_server_cpp</depend>
+  <depend>boost</depend>
+  <depend>cv_bridge</depend>
+  <depend>ffmpeg</depend>
+  <depend>image_transport</depend>
+  <depend>libopencv-dev</depend>
+  <depend>rclcpp</depend>
+  <depend>rmw</depend>
+  <depend>sensor_msgs</depend>
+
+  <!-- Dependencies present only in source files -->
+  <build_depend>pluginlib</build_depend>
+  <exec_depend>pluginlib</exec_depend>
+  <build_depend>rclcpp_components</build_depend>
+  <exec_depend>rclcpp_components</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_cmake_clang_tidy</test_depend>
+  <test_depend>ament_cmake_copyright</test_depend>
+  <test_depend>ament_cmake_lint_cmake</test_depend>
+  <test_depend>ament_cmake_xmllint</test_depend>
+  <test_depend>ament_cmake_uncrustify</test_depend>
+  <test_depend>ros_environment</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

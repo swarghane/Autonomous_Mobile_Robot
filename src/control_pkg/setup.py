@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'perception_pkg'
+package_name = 'control_pkg'
 
 setup(
     name=package_name,
@@ -11,7 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch',
-         ['launch/perception.launch.py']),
+         ['launch/control.launch.py']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,10 +26,11 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            "camera_node = perception_pkg.camera_node:main",
-            "detector_node = perception_pkg.detector_node:main",
-            "tracking_node = perception_pkg.tracking_node:main",
-            "obstacle_detection_node = perception_pkg.obstacle_detection_node:main"
+            'decision_node=control_pkg.decision_node:main',
+            'decision_node_lidar_camera=control_pkg.decision_node_lidar_camera:main',
+            'display_node=control_pkg.display_node:main',
+            'motor_control_node=control_pkg.motor_control_node:main',
+            'motor_control_node_WO_batterystats=control_pkg.motor_control_node_WO_batterystats:main',
         ],
     },
 )

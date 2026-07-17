@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'perception_pkg'
+package_name = 'interaction_pkg'
 
 setup(
     name=package_name,
@@ -11,7 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch',
-         ['launch/perception.launch.py']),
+         ['launch/interaction.launch.py']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,10 +26,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            "camera_node = perception_pkg.camera_node:main",
-            "detector_node = perception_pkg.detector_node:main",
-            "tracking_node = perception_pkg.tracking_node:main",
-            "obstacle_detection_node = perception_pkg.obstacle_detection_node:main"
+            'stt_node=interaction_pkg.stt_node:main',
+            'tts_node=interaction_pkg.tts_node:main',
+            'llm_node=interaction_pkg.llm_node:main',
         ],
     },
 )

@@ -63,7 +63,7 @@ class CameraNode(Node):
         self.declare_parameter("publish_rate", 30.0)
         self.declare_parameter("frame_id", "camera_link")
         self.declare_parameter("jpeg_quality", 80)
-        self.declare_parameter("publish_compressed", True)
+        self.declare_parameter("publish_compressed", False)
         self.declare_parameter("publish_camera_info", True)
 
         self.declare_parameter("image_width", 640)
@@ -144,8 +144,8 @@ class CameraNode(Node):
             camera_type=self.camera_type,
             sensor_id=self.sensor_id,
             device_id=self.device_id,
-            capture_width=self.image_width,
-            capture_height=self.image_height,
+            capture_width=1920,
+            capture_height=1080,
             display_width=self.image_width,
             display_height=self.image_height,
             framerate=int(self.camera_fps),

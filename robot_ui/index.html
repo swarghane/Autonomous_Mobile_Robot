@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Robot Face Interface</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="menu-trigger" onclick="toggleMenu()"></div>
+    
+    <div id="menu-overlay" class="hidden">
+        <h4>Robot Dashboard</h4>
+        <button class="menu-btn" onclick="setMode('face')">Force Face</button>
+        <button class="menu-btn" onclick="setMode('vision')">Force Vision</button>
+        <button class="menu-btn" onclick="location.reload()">Refresh Page</button>
+        <p>Status: <span id="status">Connecting...</span></p>
+        <button class="menu-btn close-btn" onclick="toggleMenu()">Close & Go Fullscreen</button>
+    </div>
+
+    <div id="face-container" class="mode-container">
+        <div class="face-wrapper">
+            <div class="eyes-row">
+                <div id="left-eye" class="eye"></div>
+                <div id="right-eye" class="eye"></div>
+            </div>
+            <div id="robot-mouth" class="mouth neutral"></div>
+        </div>
+    </div>
+
+    <div id="vision-container" class="mode-container hidden">
+        <div class="video-canvas-wrapper">
+            <img id="camera-stream" src="" alt="Waiting for camera stream...">
+            <canvas id="tracking-canvas"></canvas>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

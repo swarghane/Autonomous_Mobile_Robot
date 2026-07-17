@@ -1,0 +1,15 @@
+filterpy==1.4.5
+numpy==1.24.4
+openai==2.38.0
+openai-whisper==20250625
+opencv_contrib_python==4.10.0+6a181ce
+protobuf==7.35.0
+pyserial==3.5
+pyttsx3==2.99
+scipy==1.10.1
+sounddevice==0.5.5
+ultralytics==8.4.37
+
+# pytest==6.2.5
+# rclpy==3.3.21
+# torch==2.4.0

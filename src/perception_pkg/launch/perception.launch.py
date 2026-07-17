@@ -19,13 +19,14 @@ def generate_launch_description():
 
         Node(
             package='perception_pkg',
-            executable='tracker_node',
-            name='tracker_node',
+            executable='tracking_node',
+            name='tracking_node',
         ),
 
         Node(
             package='perception_pkg',
-            executable='display_node',
-            name='display_node',
+            executable='obstacle_detection_node',
+            name='obstacle_detection_node',
         ),
+
     ])
