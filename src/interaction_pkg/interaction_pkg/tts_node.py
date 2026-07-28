@@ -23,8 +23,6 @@ class TTSNode(Node):
 
         self.status_pub = self.create_publisher(String, '/tts_status', 10)
         self.emotion_pub = self.create_publisher(String, '/robot_emotion', 10)
-        # Real-time mouth-open amount (0.0-1.0) derived from the actual
-        # audio's loudness, for true lip-sync instead of a canned animation.
         self.mouth_pub = self.create_publisher(Float32, '/mouth_level', 10)
 
         self.loop = asyncio.new_event_loop()
@@ -32,31 +30,30 @@ class TTSNode(Node):
 
         self.player_process = None
 
-        # How often we sample/publish the amplitude envelope.
         self.chunk_ms = 50
 
-        # Bluetooth speakers have real connection/buffering latency, so the
-        # audible sound lags behind when ffplay is launched. Delay the
-        # visual lip-sync stream by this much so mouth movement lines up
-        # with when the sound actually comes out. Tune to your speaker —
-        # start around 1.0-1.5s and adjust by ear.
         self.bt_latency_s = 1.2
 
-        # Pre-cache short, frequently-used phrases (e.g. wake-word ack) so
-        # they play instantly with zero edge_tts network/synthesis delay —
-        # that delay was eating into the STT command-listening window.
-        # NOTE: must be set before the background thread starts below,
-        # since _speech_loop (on that thread) reads these immediately.
         self.cache_dir = tempfile.mkdtemp(prefix="tts_cache_")
+        # Every one of these is 100% fixed, predictable text — cache them
+        # all so they play instantly with zero edge_tts network/synthesis
+        # delay, instead of only "Yes?" and the audio toggle lines.
         self.cached_phrases = {
             'WAKE_WORD_DETECTED': 'Yes?',
             'AUDIO_ON': 'Voice commands on.',
             'AUDIO_OFF': 'Voice commands off.',
+            'FOLLOW_PERSON': 'Following you.',
+            'STOP': 'Stopping.',
+            'SEARCH': 'Searching.',
+            'FORWARD': 'Moving forward.',
+            'BACKWARD': 'Moving backward.',
+            'LEFT': 'Turning left.',
+            'RIGHT': 'Turning right.',
+            'RESUME': 'Resuming.',
+            'READY': 'Vector is ready.',
         }
         self.cache_paths = {}   # phrase text -> filepath
 
-        # De-dupe: guards against a duplicate/echoed WAKE_WORD_DETECTED (or
-        # any other token) queuing the same spoken line twice in a row.
         self._last_voice_cmd      = None
         self._last_voice_cmd_time = 0.0
         self._voice_cmd_dedupe_s  = 2.0
@@ -80,9 +77,6 @@ class TTSNode(Node):
             10
         )
 
-        # Speak a confirmation whenever audio mode is toggled (webpage
-        # button or raised-hand gesture), so it's audible even though
-        # this doesn't depend on STT being awake.
         self._last_audio_enabled = None
         self.create_subscription(
             Bool,
@@ -92,19 +86,6 @@ class TTSNode(Node):
         )
 
         self.get_logger().info("★ Edge-TTS + ffplay + lip-sync ready")
-
-    def _audio_enabled_callback(self, msg: Bool):
-        enabled = msg.data
-        if enabled == self._last_audio_enabled:
-            return   # avoid repeating on redundant publishes of the same state
-        self._last_audio_enabled = enabled
-
-        text = "Voice commands on." if enabled else "Voice commands off."
-        if self.speech_q:
-            self.loop.call_soon_threadsafe(
-                self.speech_q.put_nowait,
-                text
-            )
 
     def response_callback(self, msg):
         if self.speech_q:
@@ -143,6 +124,19 @@ class TTSNode(Node):
                 text
             )
 
+    def _audio_enabled_callback(self, msg: Bool):
+        enabled = msg.data
+        if enabled == self._last_audio_enabled:
+            return
+        self._last_audio_enabled = enabled
+
+        text = "Voice commands on." if enabled else "Voice commands off."
+        if self.speech_q:
+            self.loop.call_soon_threadsafe(
+                self.speech_q.put_nowait,
+                text
+            )
+
     def _publish_status(self, text):
         msg = String()
         msg.data = text
@@ -167,8 +161,6 @@ class TTSNode(Node):
         )
 
     def _compute_levels(self, filename):
-        """Load the generated mp3 and return a list of normalized (0-1)
-        RMS loudness values, one per chunk_ms window, for lip-sync."""
         try:
             audio = AudioSegment.from_mp3(filename)
         except Exception as e:
@@ -186,8 +178,6 @@ class TTSNode(Node):
         return [min(1.0, rms / max_rms) for rms in raw_levels]
 
     async def _lipsync_stream(self, levels, start_delay: float = 0.0):
-        """Publish mouth levels at chunk_ms cadence, running concurrently
-        with ffplay's playback, delayed to match speaker output latency."""
         try:
             if start_delay > 0:
                 await asyncio.sleep(start_delay)
@@ -200,7 +190,7 @@ class TTSNode(Node):
             self._publish_mouth(0.0)
 
     async def _pregenerate_cache(self):
-        for text in set(self.cached_phrases.values()):
+        async def cache_one(text):
             try:
                 path = os.path.join(self.cache_dir, f"{abs(hash(text))}.mp3")
                 communicate = edge_tts.Communicate(text=text, voice=self.voice)
@@ -210,8 +200,18 @@ class TTSNode(Node):
             except Exception as e:
                 self.get_logger().warn(f'[TTS] Failed to pre-cache "{text}": {e}')
 
+        # Run all cache-generation network calls concurrently instead of
+        # one at a time — with 11 phrases, sequential awaits meant an
+        # 11x network-latency startup delay before "Vector is ready" could
+        # even play.
+        await asyncio.gather(*(cache_one(t) for t in set(self.cached_phrases.values())))
+
     async def _speech_loop(self):
-        await self._pregenerate_cache()
+        # Launch caching in the background rather than blocking on it —
+        # if something needs to be spoken before caching finishes, it
+        # just falls back to live synthesis for that one instance and
+        # self-heals once the cache task completes.
+        asyncio.ensure_future(self._pregenerate_cache())
 
         while rclpy.ok():
             text = await self.speech_q.get()
@@ -239,10 +239,6 @@ class TTSNode(Node):
 
                 levels = self._compute_levels(filename)
 
-                # Only now, right as playback is about to start, tell the
-                # UI to switch to "talking" — this used to fire before
-                # synthesis even finished, which made the mouth/eyes shift
-                # 1-2s ahead of any actual audio.
                 self._publish_emotion("talking")
 
                 self.player_process = await asyncio.create_subprocess_exec(
@@ -296,7 +292,8 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        pass
+        if rclpy.ok():
+            node.get_logger().info('TTS node stopping...')
     finally:
         node.destroy_node()
         try:

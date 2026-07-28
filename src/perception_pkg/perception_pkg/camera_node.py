@@ -5,6 +5,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image, CompressedImage, CameraInfo
 from cv_bridge import CvBridge
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
+import threading
 
 
 # ==============================
@@ -231,7 +232,16 @@ class CameraNode(Node):
     # ==============================
     def destroy_node(self):
         if self.cap:
-            self.cap.release()
+            cap = self.cap
+            self.cap = None
+            def _release():
+                try:
+                    cap.release()
+                except Exception as e:
+                    self.get_logger().warn(f'Camera release error: {e}')
+            t = threading.Thread(target=_release, daemon=True)
+            t.start()
+            t.join(timeout=2.0)   # don't block shutdown longer than this
         super().destroy_node()
 
 
@@ -246,12 +256,11 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        # This catches the Ctrl+C gracefully
-        node.get_logger().info('Camera node stopping...')
-    finally:
-        # Check if it's still active before shutting down
         if rclpy.ok():
-            node.destroy_node()
+            node.get_logger().info('Camera node stopping...')
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
             rclpy.shutdown()
 
 if __name__ == '__main__':

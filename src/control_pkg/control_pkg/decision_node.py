@@ -41,7 +41,13 @@ class DecisionNode(Node):
         self.maneuver_return_mode    = 'AUTO'
 
         # Tunables for the timed moves
-        self.turn_speed_rad_s   = 0.6            # matches your old LEFT/RIGHT speed
+        self.turn_speed_rad_s   = 0.6            # commanded angular.z sent to motors
+        # Measured/actual rotation rate at that commanded speed — used only
+        # for duration math. Started equal to turn_speed_rad_s (naive
+        # assumption); observed real turns were ~2x the intended angle, so
+        # actual rotation rate is roughly double what was commanded.
+        # Recalibrate this value based on real-world testing (see below).
+        self.measured_turn_rate_rad_s = 1.2
         self.turn_angle_rad     = math.radians(90.0)
         self.linear_speed_m_s   = 0.25
         self.linear_distance_m  = 0.20           # ~8 inches
@@ -124,19 +130,31 @@ class DecisionNode(Node):
 
     def audio_enabled_callback(self, msg: Bool):
         if not msg.data:
-            # Audio just went OFF — no voice control available, so follow
-            # the person automatically instead of just roaming blind.
+            # Audio just went OFF — remember what was running so we can
+            # resume it later, then force FOLLOW so the robot keeps doing
+            # something useful (and can't be derailed by a false wake word
+            # it can no longer even hear) while voice control is muted.
+            self.pre_audio_off_follow_enabled = self.follow_enabled
+            self.pre_audio_off_voice_mode = self.voice_mode if self.voice_mode != 'MANEUVER' else 'AUTO'
+
             self.voice_mode      = 'AUTO'
             self.follow_enabled  = True
             self.target_id       = None
             self.last_target_time = time.time()
             self.get_logger().info('🔇 Audio OFF — auto-switching to FOLLOW mode')
         else:
-            # Audio back ON — hand control back to voice; revert to plain
-            # roam until the person says "follow me" again.
-            self.voice_mode      = 'AUTO'
-            self.follow_enabled  = False
-            self.get_logger().info('🔊 Audio ON — voice control restored, back to roam')
+            # Audio back ON — resume whatever was actually running before
+            # it went off (roam or follow), rather than forcing a reset.
+            # Voice commands remain free to override this at any time.
+            self.voice_mode     = getattr(self, 'pre_audio_off_voice_mode', 'AUTO')
+            self.follow_enabled = getattr(self, 'pre_audio_off_follow_enabled', False)
+            if self.follow_enabled:
+                self.target_id = None
+                self.last_target_time = time.time()
+            self.get_logger().info(
+                f'🔊 Audio ON — voice control restored, resuming previous mode '
+                f'(follow_enabled={self.follow_enabled})'
+            )
 
     def voice_callback(self, msg: String):
         cmd = msg.data.strip().upper()
@@ -191,10 +209,10 @@ class DecisionNode(Node):
 
         if cmd == 'LEFT':
             self.maneuver_twist = (0.0, self.turn_speed_rad_s)
-            self.maneuver_duration = self.turn_angle_rad / self.turn_speed_rad_s
+            self.maneuver_duration = self.turn_angle_rad / self.measured_turn_rate_rad_s
         elif cmd == 'RIGHT':
             self.maneuver_twist = (0.0, -self.turn_speed_rad_s)
-            self.maneuver_duration = self.turn_angle_rad / self.turn_speed_rad_s
+            self.maneuver_duration = self.turn_angle_rad / self.measured_turn_rate_rad_s
         elif cmd == 'FORWARD':
             self.maneuver_twist = (self.linear_speed_m_s, 0.0)
             self.maneuver_duration = self.linear_distance_m / self.linear_speed_m_s
@@ -347,10 +365,11 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        pass
-    finally:
         if rclpy.ok():
-            node.destroy_node()
+            node.get_logger().info('Decision node stopping...')
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
             rclpy.shutdown()
 
 

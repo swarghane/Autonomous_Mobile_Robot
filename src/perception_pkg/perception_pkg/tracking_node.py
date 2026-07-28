@@ -207,10 +207,11 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info('Tracker node intercepting Ctrl+C shutdown safely...')
-    finally:
         if rclpy.ok():
-            node.destroy_node()
+            node.get_logger().info('Tracker node stopping...')
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
             rclpy.shutdown()
 
 if __name__=="__main__":

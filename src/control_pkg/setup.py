@@ -31,6 +31,7 @@ setup(
             'display_node=control_pkg.display_node:main',
             'motor_control_node=control_pkg.motor_control_node:main',
             'motor_control_node_WO_batterystats=control_pkg.motor_control_node_WO_batterystats:main',
+            'watchdog_node=control_pkg.watchdog_node:main',
         ],
     },
 )

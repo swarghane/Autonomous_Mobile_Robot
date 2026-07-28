@@ -1,15 +1,12 @@
 import time
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Bool, Bool
-import whisper
+from std_msgs.msg import String, Bool
+from faster_whisper import WhisperModel
 import sounddevice as sd
 import numpy as np
-import tempfile
-import os
 import threading
 import queue
-from scipy.io.wavfile import write as wav_write
 from scipy.signal import resample_poly
 
 # ─── Audio config ───────────────────────────────────────────────
@@ -25,6 +22,8 @@ SILENCE_SEC   = 1.5     # seconds of silence before command is considered done
 class STTNode(Node):
     def __init__(self):
         super().__init__('stt_node')
+        self._stop_event = threading.Event()
+
         self.pub = self.create_publisher(String, '/voice_command', 10)
 
         self.create_subscription(
@@ -34,26 +33,17 @@ class STTNode(Node):
         self.is_tts_speaking = False
 
         # Audio ON/OFF toggle (webpage button or raised-hand gesture).
-        # Default True so the robot listens normally until someone
-        # explicitly turns it off.
         self.audio_enabled = True
         self.create_subscription(
             Bool, '/audio_enabled',
             self._audio_enabled_callback, 10
         )
 
-        # Audio ON/OFF trigger (e.g. webpage dashboard button). Defaults
-        # to enabled so behaviour is unchanged unless someone actively
-        # toggles it off (e.g. during active person-following, to stop
-        # false wake-word triggers).
-        self.audio_enabled = True
-        self.create_subscription(
-            Bool, '/audio_enabled',
-            self._audio_enabled_callback, 10
-        )
-
-        self.get_logger().info('Loading Whisper...')
-        self.model = whisper.load_model('tiny.en').to('cuda')
+        self.get_logger().info('Loading Whisper (faster-whisper, int8)...')
+        # int8_float16: int8 weights, float16 compute — good speed/accuracy
+        # balance on Jetson GPUs. Try "int8" (pure int8) if you want to
+        # push speed further, or "float16" if accuracy matters more.
+        self.model = WhisperModel('tiny.en', device='cuda', compute_type='int8_float16')
 
         self.audio_q = queue.Queue()
         self.stream  = sd.InputStream(
@@ -66,7 +56,9 @@ class STTNode(Node):
         )
         self.stream.start()
 
-        threading.Thread(target=self._listen_loop, daemon=True).start()
+        self._stop_event = threading.Event()
+        self._listen_thread = threading.Thread(target=self._listen_loop, daemon=True)
+        self._listen_thread.start()
         self.get_logger().info('★ Ready. Say "Vector".')
 
     # ─── TTS mute / unmute ──────────────────────────────────────
@@ -76,9 +68,7 @@ class STTNode(Node):
             self.is_tts_speaking = True
             self.get_logger().info('🔇 TTS Active: muting STT.')
         elif status == 'IDLE':
-            time.sleep(0.6)          # let room echo decay (bumped from 0.3s —
-                                      # shorter delay let "Yes?" tail-echo get
-                                      # misheard as a second wake word)
+            time.sleep(0.6)          # let room echo decay
             self._flush_queue()
             self.is_tts_speaking = False
             self.get_logger().info('🔊 TTS Idle: STT resumed.')
@@ -121,35 +111,38 @@ class STTNode(Node):
 
     def _transcribe(self, audio: np.ndarray, prompt: str) -> str:
         audio_16k = self._to_whisper(audio)
-        tmp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
-        wav_write(tmp.name, WHISPER_RATE, (audio_16k * 32767).astype(np.int16))
-        tmp.close()
-        try:
-            r = self.model.transcribe(
-                tmp.name, fp16=True, language='en',
-                initial_prompt=prompt,
-                best_of=1, beam_size=1, temperature=0.0,
-                no_speech_threshold=0.6,
-            )
-            text = r['text'].lower().strip()
 
-            # Hallucination guard — compression ratio
-            for seg in r.get('segments', []):
-                if seg.get('compression_ratio', 0) > 2.4:
-                    self.get_logger().warn('[STT] Hallucination detected — ignored')
-                    return ''
+        # faster-whisper accepts a numpy float32 array directly — no need
+        # to round-trip through a temp WAV file like openai-whisper required.
+        segments, info = self.model.transcribe(
+            audio_16k,
+            language='en',
+            initial_prompt=prompt,
+            beam_size=1,
+            best_of=1,
+            temperature=0.0,
+            no_speech_threshold=0.6,
+        )
 
-            # Hallucination guard — word repetition loop
-            words = text.split()
-            if len(words) > 5:
-                top = max(set(words), key=words.count)
-                if words.count(top) / len(words) > 0.5:
-                    self.get_logger().warn(f'[STT] Repetition loop on "{top}" — ignored')
-                    return ''
+        text_parts = []
+        for seg in segments:
+            # Hallucination guard — compression ratio (same check as before)
+            if getattr(seg, 'compression_ratio', 0) > 2.4:
+                self.get_logger().warn('[STT] Hallucination detected — ignored')
+                return ''
+            text_parts.append(seg.text)
 
-            return text
-        finally:
-            os.remove(tmp.name)
+        text = ''.join(text_parts).lower().strip()
+
+        # Hallucination guard — word repetition loop
+        words = text.split()
+        if len(words) > 5:
+            top = max(set(words), key=words.count)
+            if words.count(top) / len(words) > 0.5:
+                self.get_logger().warn(f'[STT] Repetition loop on "{top}" — ignored')
+                return ''
+
+        return text
 
     # ─── Collect audio until silence ────────────────────────────
     def _collect_until_silence(self, max_sec=6.0, prefill=None) -> np.ndarray:
@@ -213,7 +206,7 @@ class STTNode(Node):
             'specter', 'vactor', 'wector', 'picture', 'with that',
         ]
 
-        while rclpy.ok():
+        while not self._stop_event.is_set() and rclpy.ok():
 
             # Audio mode OFF (webpage toggle / gesture) — drain mic input
             # and skip wake-word detection entirely until re-enabled.
@@ -362,12 +355,16 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        pass
+        if rclpy.ok():
+            node.get_logger().info('STT node stopping...')
     finally:
+        node._stop_event.set()             
+        node._listen_thread.join(timeout=3.0)  
         node.stream.stop()
         node.stream.close()
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

@@ -141,10 +141,11 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        pass
-    finally:
         if rclpy.ok():
-            node.destroy_node()
+            node.get_logger().info('Obstacle detection node stopping...')
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
             rclpy.shutdown()
 
 

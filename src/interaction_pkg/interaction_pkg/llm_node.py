@@ -258,10 +258,12 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        pass
+        if rclpy.ok():
+            node.get_logger().info('LLM node stopping...')
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():     
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

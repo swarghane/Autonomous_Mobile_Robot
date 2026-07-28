@@ -330,7 +330,8 @@ def main(args=None):
     try:
         executor.spin()
     except KeyboardInterrupt:
-        pass
+        if rclpy.ok():
+            node.get_logger().info('Detector node stopping...')
     finally:
         node.destroy_node()
         if rclpy.ok():

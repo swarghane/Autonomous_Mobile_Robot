@@ -92,12 +92,11 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        # This catches the Ctrl+C gracefully
-        node.get_logger().info('Display node stopping...')
-    finally:
-        # Check if it's still active before shutting down
         if rclpy.ok():
-            node.destroy_node()
+            node.get_logger().info('Display node stopping...')
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
             rclpy.shutdown()
 
 

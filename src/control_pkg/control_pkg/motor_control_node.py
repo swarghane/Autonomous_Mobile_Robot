@@ -154,7 +154,8 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        pass
+        if rclpy.ok():
+            node.get_logger().info('Motor control node stopping...')
     finally:
         node._stop_flag = True
         # Emergency stop routine on shutdown
@@ -166,8 +167,8 @@ def main(args=None):
                 node.get_logger().info('Serial port closed cleanly.')
             except Exception as e:
                 node.get_logger().error(f'Failed to send stop command during shutdown: {e}')
+        node.destroy_node()
         if rclpy.ok():
-            node.destroy_node()
             rclpy.shutdown()
 
 
