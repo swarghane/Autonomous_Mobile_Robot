@@ -1,0 +1,18 @@
+tts_node:
+  ros__parameters:
+    voice: en-US-BrianNeural
+
+    tts_status_topic: /tts_status
+    robot_emotion_topic: /robot_emotion
+    mouth_level_topic: /mouth_level
+    llm_response_topic: /llm_response
+    voice_command_topic: /voice_command
+    audio_enabled_topic: /audio_enabled
+
+    chunk_ms: 50
+    bt_latency_s: 1.2
+    post_playback_delay_s: 0.4
+    voice_command_dedupe_s: 2.0
+    player_stop_timeout_s: 1.0
+
+    ffplay_command: ffplay

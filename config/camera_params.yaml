@@ -1,0 +1,33 @@
+camera_node:
+  ros__parameters:
+    camera_type: csi
+    sensor_id: 0
+    device_id: 0
+    flip_method: 0
+
+    capture_width: 1920
+    capture_height: 1080
+    image_width: 640
+    image_height: 480
+    camera_fps: 30.0
+    publish_rate: 30.0
+
+    frame_id: camera_link
+    jpeg_quality: 80
+    publish_compressed: false
+    publish_camera_info: true
+
+    image_raw_topic: /camera/image_raw
+    image_compressed_topic: /camera/image_compressed
+    camera_info_topic: /camera/camera_info
+    camera_heartbeat_topic: "/camera/heartbeat"
+    camera_heartbeat_rate: 1.0
+
+    enable_reconnect: true
+    reconnect_after_failures: 30
+    camera_open_delay_sec: 2.0
+    shutdown_release_timeout_sec: 2.0
+    stats_log_interval_sec: 5.0
+
+    camera_fx: 600.0
+    camera_fy: 600.0

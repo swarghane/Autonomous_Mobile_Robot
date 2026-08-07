@@ -16,6 +16,12 @@ def generate_launch_description():
             name='motor_control_node',
         ),
 
+        Node(
+            package='control_pkg',
+            executable='watchdog_node',
+            name='watchdog_node',
+        ),
+
         # Node(
         #     package='control_pkg',
         #     executable='display_node',

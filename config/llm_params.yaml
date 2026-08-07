@@ -1,0 +1,12 @@
+llm_node:
+  ros__parameters:
+    llm_response_topic: /llm_response
+    robot_ui_mode_topic: /robot_ui_mode
+    voice_command_topic: /voice_command
+    camera_topic: /camera/image_raw
+    battery_topic: /battery_status
+    chat_model: meta/llama-3.1-8b-instruct
+    vision_model: meta/llama-3.2-11b-vision-instruct
+    min_interval: 4.0
+    vision_cooldown: 3.0
+    dedupe_window: 3.0

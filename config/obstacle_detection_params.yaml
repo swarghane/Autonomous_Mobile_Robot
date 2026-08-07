@@ -1,0 +1,17 @@
+obstacle_detection_node:
+  ros__parameters:
+    scan_topic: /scan
+    obstacle_topic: /obstacle_detected
+    front_distance_topic: /front_distance
+    free_direction_topic: /free_direction
+
+    obstacle_distance_threshold: 0.50
+    front_angle_range: 20
+
+    left_sector_start: 30
+    left_sector_end: 90
+    right_sector_start: 90
+    right_sector_end: 30
+
+    direction_deadband: 0.30
+    default_direction: LEFT

@@ -9,51 +9,100 @@ import threading
 import queue
 from scipy.signal import resample_poly
 
-# ─── Audio config ───────────────────────────────────────────────
-SAMPLE_RATE   = 44100   # USB mic native rate — no ALSA resampling errors
-CHUNK_SIZE    = 4410    # 100ms chunks
-WHISPER_RATE  = 16000   # Whisper always needs 16kHz
-
-RMS_WAKE      = 600     # threshold to detect any speech
-RMS_COMMAND   = 150     # lower threshold — command capture is more sensitive
-SILENCE_SEC   = 1.5     # seconds of silence before command is considered done
-# ────────────────────────────────────────────────────────────────
-
+                                            
 class STTNode(Node):
     def __init__(self):
         super().__init__('stt_node')
         self._stop_event = threading.Event()
 
-        self.pub = self.create_publisher(String, '/voice_command', 10)
+        self.declare_parameter('voice_command_topic', '/voice_command')
+        self.declare_parameter('tts_status_topic', '/tts_status')
+        self.declare_parameter('audio_enabled_topic', '/audio_enabled')
+
+        self.declare_parameter('model_name', 'tiny.en')
+        self.declare_parameter('device', 'cuda')
+        self.declare_parameter('compute_type', 'int8_float16')
+
+        self.declare_parameter('sample_rate', 44100)
+        self.declare_parameter('chunk_size', 4410)
+        self.declare_parameter('whisper_rate', 16000)
+        self.declare_parameter('channels', 1)
+        self.declare_parameter('audio_dtype', 'float32')
+        self.declare_parameter('input_device', '')
+
+        self.declare_parameter('rms_wake', 600.0)
+        self.declare_parameter('rms_command', 150.0)
+        self.declare_parameter('silence_sec', 0.7)
+        self.declare_parameter('command_max_sec', 4.0)
+
+        self.declare_parameter('tts_echo_decay_sec', 0.3)
+        self.declare_parameter('ack_start_timeout', 0.3)
+        self.declare_parameter('ack_total_timeout', 6.0)
+
+        self.voice_command_topic = self.get_parameter('voice_command_topic').value
+        self.tts_status_topic = self.get_parameter('tts_status_topic').value
+        self.audio_enabled_topic = self.get_parameter('audio_enabled_topic').value
+
+        self.model_name = self.get_parameter('model_name').value
+        self.device = self.get_parameter('device').value
+        self.compute_type = self.get_parameter('compute_type').value
+
+        self.sample_rate = self.get_parameter('sample_rate').value
+        self.chunk_size = self.get_parameter('chunk_size').value
+        self.whisper_rate = self.get_parameter('whisper_rate').value
+        self.channels = self.get_parameter('channels').value
+        self.audio_dtype = self.get_parameter('audio_dtype').value
+        self.input_device = self.get_parameter('input_device').value
+
+        self.rms_wake = self.get_parameter('rms_wake').value
+        self.rms_command = self.get_parameter('rms_command').value
+        self.silence_sec = self.get_parameter('silence_sec').value
+        self.command_max_sec = self.get_parameter('command_max_sec').value
+
+        self.tts_echo_decay_sec = self.get_parameter('tts_echo_decay_sec').value
+        self.ack_start_timeout = self.get_parameter('ack_start_timeout').value
+        self.ack_total_timeout = self.get_parameter('ack_total_timeout').value
+
+        self.pub = self.create_publisher(String, self.voice_command_topic, 10)
 
         self.create_subscription(
-            String, '/tts_status',
-            self._tts_status_callback, 10
+            String,
+            self.tts_status_topic,
+            self._tts_status_callback,
+            10
         )
         self.is_tts_speaking = False
 
-        # Audio ON/OFF toggle (webpage button or raised-hand gesture).
         self.audio_enabled = True
         self.create_subscription(
-            Bool, '/audio_enabled',
-            self._audio_enabled_callback, 10
+            Bool,
+            self.audio_enabled_topic,
+            self._audio_enabled_callback,
+            10
         )
 
-        self.get_logger().info('Loading Whisper (faster-whisper, int8)...')
-        # int8_float16: int8 weights, float16 compute — good speed/accuracy
-        # balance on Jetson GPUs. Try "int8" (pure int8) if you want to
-        # push speed further, or "float16" if accuracy matters more.
-        self.model = WhisperModel('tiny.en', device='cuda', compute_type='int8_float16')
+        self.get_logger().info(
+            f'Loading Whisper ({self.model_name}, {self.device}, {self.compute_type})...'
+        )
+        self.model = WhisperModel(
+            self.model_name,
+            device=self.device,
+            compute_type=self.compute_type
+        )
 
         self.audio_q = queue.Queue()
-        self.stream  = sd.InputStream(
-            samplerate=SAMPLE_RATE,
-            channels=1,
-            dtype='float32',
-            blocksize=CHUNK_SIZE,
-            # device='USB PnP Sound Device',
-            callback=lambda i, f, t, s: self.audio_q.put(i.copy().flatten())
-        )
+
+        stream_kwargs = {
+            'samplerate': self.sample_rate,
+            'channels': self.channels,
+            'dtype': self.audio_dtype,
+            'blocksize': self.chunk_size,
+            'callback': lambda i, f, t, s: self.audio_q.put(i.copy().flatten()),
+        }
+        if self.input_device:
+            stream_kwargs['device'] = self.input_device
+
+        self.stream = sd.InputStream(**stream_kwargs)
         self.stream.start()
 
         self._stop_event = threading.Event()
@@ -61,14 +110,17 @@ class STTNode(Node):
         self._listen_thread.start()
         self.get_logger().info('★ Ready. Say "Vector".')
 
-    # ─── TTS mute / unmute ──────────────────────────────────────
     def _tts_status_callback(self, msg: String):
         status = msg.data.upper()
         if status == 'SPEAKING':
             self.is_tts_speaking = True
+            self._t_speaking_start = time.time()
             self.get_logger().info('🔇 TTS Active: muting STT.')
         elif status == 'IDLE':
-            time.sleep(0.6)          # let room echo decay
+            t_idle_received = time.time()
+            speaking_dur = t_idle_received - getattr(self, '_t_speaking_start', t_idle_received)
+            self.get_logger().info(f'[TIMING] SPEAKING→IDLE received: {speaking_dur:.2f}s')
+            time.sleep(self.tts_echo_decay_sec)
             self._flush_queue()
             self.is_tts_speaking = False
             self.get_logger().info('🔊 TTS Idle: STT resumed.')
@@ -90,30 +142,24 @@ class STTNode(Node):
             except queue.Empty:
                 break
 
-    def _wait_for_ack_tts(self, start_timeout=0.8, total_timeout=8.0):
-        """
-        After publishing WAKE_WORD_DETECTED, tts_node speaks a short "Yes?"
-        acknowledgment. Wait for that to actually start (SPEAKING) and then
-        finish (IDLE) before opening the real command-listening window —
-        otherwise _collect_until_silence races the ack and gets killed by
-        the is_tts_speaking mute check within milliseconds.
-        """
+    def _wait_for_ack_tts(self, start_timeout=None, total_timeout=None):
+        if start_timeout is None:
+            start_timeout = self.ack_start_timeout
+        if total_timeout is None:
+            total_timeout = self.ack_total_timeout
+
         start = time.time()
         while not self.is_tts_speaking and (time.time() - start) < start_timeout:
             time.sleep(0.02)
         while self.is_tts_speaking and (time.time() - start) < total_timeout:
             time.sleep(0.02)
 
-    # ─── Resample + transcribe ──────────────────────────────────
     def _to_whisper(self, audio: np.ndarray) -> np.ndarray:
-        """Resample from 44100 → 16000 for Whisper."""
-        return resample_poly(audio, WHISPER_RATE, SAMPLE_RATE).astype(np.float32)
+        return resample_poly(audio, self.whisper_rate, self.sample_rate).astype(np.float32)
 
     def _transcribe(self, audio: np.ndarray, prompt: str) -> str:
         audio_16k = self._to_whisper(audio)
 
-        # faster-whisper accepts a numpy float32 array directly — no need
-        # to round-trip through a temp WAV file like openai-whisper required.
         segments, info = self.model.transcribe(
             audio_16k,
             language='en',
@@ -126,7 +172,6 @@ class STTNode(Node):
 
         text_parts = []
         for seg in segments:
-            # Hallucination guard — compression ratio (same check as before)
             if getattr(seg, 'compression_ratio', 0) > 2.4:
                 self.get_logger().warn('[STT] Hallucination detected — ignored')
                 return ''
@@ -134,7 +179,6 @@ class STTNode(Node):
 
         text = ''.join(text_parts).lower().strip()
 
-        # Hallucination guard — word repetition loop
         words = text.split()
         if len(words) > 5:
             top = max(set(words), key=words.count)
@@ -144,30 +188,23 @@ class STTNode(Node):
 
         return text
 
-    # ─── Collect audio until silence ────────────────────────────
     def _collect_until_silence(self, max_sec=6.0, prefill=None) -> np.ndarray:
-        """
-        Collect audio chunks until silence or timeout.
-        prefill: list of chunks already captured (e.g. tail of wake word audio)
-        """
-        silence_chunks = int(SILENCE_SEC * SAMPLE_RATE / CHUNK_SIZE)
-        max_chunks     = int(max_sec     * SAMPLE_RATE / CHUNK_SIZE)
+        silence_chunks = int(self.silence_sec * self.sample_rate / self.chunk_size)
+        max_chunks = int(max_sec * self.sample_rate / self.chunk_size)
 
-        # Seed buffer with any audio already captured
-        buf     = list(prefill) if prefill else []
-        silent  = 0
+        buf = list(prefill) if prefill else []
+        silent = 0
         started = False
 
-        # Check if prefill already contains voice
         for chunk in buf:
             rms = np.sqrt(np.mean(chunk ** 2)) * 32767
-            if rms > RMS_COMMAND:
+            if rms > self.rms_command:
                 started = True
                 break
 
         self.get_logger().info(
             f'[CMD] collecting — prefill:{len(buf)} chunks, '
-            f'voice_detected:{started}, threshold:{RMS_COMMAND}'
+            f'voice_detected:{started}, threshold:{self.rms_command}'
         )
 
         remaining = max_chunks - len(buf)
@@ -178,7 +215,6 @@ class STTNode(Node):
             try:
                 chunk = self.audio_q.get(timeout=0.3)
             except queue.Empty:
-                # If we already heard voice, silence counts as end of speech
                 if started:
                     silent += 1
                     if silent >= silence_chunks:
@@ -188,9 +224,9 @@ class STTNode(Node):
             buf.append(chunk)
             rms = np.sqrt(np.mean(chunk ** 2)) * 32767
 
-            if rms > RMS_COMMAND:
+            if rms > self.rms_command:
                 started = True
-                silent  = 0
+                silent = 0
             elif started:
                 silent += 1
                 if silent >= silence_chunks:
@@ -199,7 +235,6 @@ class STTNode(Node):
         self.get_logger().info(f'[CMD] done — total:{len(buf)} chunks, voice:{started}')
         return np.concatenate(buf) if buf else np.array([], dtype=np.float32)
 
-    # ─── Main listen loop ───────────────────────────────────────
     def _listen_loop(self):
         WAKE_WORDS = [
             'vector', 'vektor', 'hector', 'victor', 'vectra',
@@ -207,9 +242,6 @@ class STTNode(Node):
         ]
 
         while not self._stop_event.is_set() and rclpy.ok():
-
-            # Audio mode OFF (webpage toggle / gesture) — drain mic input
-            # and skip wake-word detection entirely until re-enabled.
             if not self.audio_enabled:
                 try:
                     self.audio_q.get(timeout=0.1)
@@ -217,7 +249,6 @@ class STTNode(Node):
                     pass
                 continue
 
-            # Drain queue while TTS is speaking
             if self.is_tts_speaking:
                 try:
                     self.audio_q.get(timeout=0.1)
@@ -225,7 +256,6 @@ class STTNode(Node):
                     pass
                 continue
 
-            # ── Step 1: wait for any RMS spike ──────────────────
             try:
                 chunk = self.audio_q.get(timeout=0.1)
             except queue.Empty:
@@ -235,10 +265,9 @@ class STTNode(Node):
                 continue
 
             rms = np.sqrt(np.mean(chunk ** 2)) * 32767
-            if rms < RMS_WAKE:
+            if rms < self.rms_wake:
                 continue
 
-            # ── Step 2: collect ~1.5s around the spike ──────────
             pre = [chunk]
             for _ in range(14):
                 if self.is_tts_speaking:
@@ -251,9 +280,8 @@ class STTNode(Node):
             if self.is_tts_speaking:
                 continue
 
-            # ── Step 3: check for wake word ──────────────────────
             audio = np.concatenate(pre)
-            text  = self._transcribe(audio, prompt='Vector')
+            text = self._transcribe(audio, prompt='Vector')
             self.get_logger().info(f'[Wake] heard: "{text}"')
 
             if not text.strip():
@@ -266,18 +294,17 @@ class STTNode(Node):
             if not any(w in text for w in WAKE_WORDS):
                 continue
 
-            # ── Step 4: wake confirmed — collect command ─────────
             self.get_logger().info('✅ Vector! Listening for command...')
+            t_wake_pub = time.time()
             self._publish('WAKE_WORD_DETECTED')
 
-            # Let the "Yes?" acknowledgment fully play out first — starting
-            # command collection immediately used to race the TTS mute
-            # check and get killed within milliseconds of "Yes?" starting.
             self._wait_for_ack_tts()
+            t_ack_done = time.time()
+            self.get_logger().info(
+                f'[TIMING] wake_pub → ack_done: {t_ack_done - t_wake_pub:.2f}s'
+            )
 
-            # Buffer is already flushed by _tts_status_callback's IDLE
-            # handler, so prefill is stale/irrelevant here — start fresh.
-            cmd_audio = self._collect_until_silence(max_sec=6.0)
+            cmd_audio = self._collect_until_silence(max_sec=self.command_max_sec)
 
             if self.is_tts_speaking:
                 continue
@@ -288,15 +315,14 @@ class STTNode(Node):
                 continue
 
             cmd_rms = np.sqrt(np.mean(cmd_audio ** 2)) * 32767
-            if cmd_rms < RMS_COMMAND:
+            if cmd_rms < self.rms_command:
                 self.get_logger().info(f'[CMD] Too quiet (rms={cmd_rms:.0f}) — resuming')
                 self._publish('RESUME')
                 continue
 
-            # ── Step 5: transcribe command ───────────────────────
             cmd_text = self._transcribe(
                 cmd_audio,
-                prompt='follow me, stop, forward, backward, left, right, search, describe the scene'
+                prompt='follow me, follow, stop, forward, backward, left, right, search, describe the scene, battery, battery status, battery level, battery percentage, power level, charge level'
             )
             if not cmd_text.strip():
                 self.get_logger().info('[CMD] Empty transcription — resuming')
@@ -312,15 +338,13 @@ class STTNode(Node):
             else:
                 self._publish(command)
 
-            # ── Step 6: clean up before next wake cycle ──────────
             self._flush_queue()
             time.sleep(0.5)
             self._flush_queue()
             self.get_logger().info('🔄 Listening for "Vector"...')
 
-    # ─── Helpers ────────────────────────────────────────────────
     def _publish(self, data: str):
-        msg      = String()
+        msg = String()
         msg.data = data
         self.pub.publish(msg)
 
@@ -341,6 +365,12 @@ class STTNode(Node):
         elif any(x in t for x in ['move backward', 'go back', 'backward']):
             return 'BACKWARD'
         elif any(x in t for x in [
+            'battery', 'batteries', 'batery', 'battery status', 'battery level',
+            'battery percentage', 'remaining battery', 'power level', 'power status',
+            'charge level', 'remaining charge', 'how much charge',
+        ]):
+            return 'BATTERY_STATUS'
+        elif any(x in t for x in [
             'describe the scene', 'describe scene', 'describe the seen', 'describe seen',
             'what do you see', 'what can you see', 'whats around', "what's around",
             'look around', 'describe what you see',
@@ -358,13 +388,14 @@ def main(args=None):
         if rclpy.ok():
             node.get_logger().info('STT node stopping...')
     finally:
-        node._stop_event.set()             
-        node._listen_thread.join(timeout=3.0)  
+        node._stop_event.set()
+        node._listen_thread.join(timeout=3.0)
         node.stream.stop()
         node.stream.close()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

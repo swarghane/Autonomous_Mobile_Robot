@@ -1,104 +1,131 @@
-import rclpy
-from rclpy.node import Node
 import cv2
-from vision_msgs.msg import Detection2D, Detection2DArray
-from sensor_msgs.msg import Image
+import rclpy
 from cv_bridge import CvBridge
-from rclpy.qos import QoSProfile, HistoryPolicy, ReliabilityPolicy, DurabilityPolicy
-import numpy as np
+from rclpy.node import Node
+from rclpy.qos import (
+    DurabilityPolicy,
+    HistoryPolicy,
+    QoSProfile,
+    ReliabilityPolicy,
+)
+from sensor_msgs.msg import Image
+from vision_msgs.msg import Detection2DArray
 
 
 class DisplayNode(Node):
+    """Draw tracked detections on camera frames and publish a debug image."""
+
     def __init__(self):
-        super().__init__('display_node')
+        super().__init__("display_node")
 
         self.bridge = CvBridge()
-        self.latest_msg = None
+        self.latest_detections = None
 
         image_qos = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
             depth=1,
             reliability=ReliabilityPolicy.BEST_EFFORT,
-            durability=DurabilityPolicy.VOLATILE
+            durability=DurabilityPolicy.VOLATILE,
         )
         detection_qos = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
             depth=10,
             reliability=ReliabilityPolicy.RELIABLE,
-            durability=DurabilityPolicy.VOLATILE
+            durability=DurabilityPolicy.VOLATILE,
         )
 
         self.image_sub = self.create_subscription(
-            Image, '/camera/image_raw', self.image_callback, image_qos)
+            Image,
+            "/camera/image_raw",
+            self.image_callback,
+            image_qos,
+        )
+        self.detection_sub = self.create_subscription(
+            Detection2DArray,
+            "/tracked_detections",
+            self.detection_callback,
+            detection_qos,
+        )
+        self.debug_image_pub = self.create_publisher(
+            Image,
+            "/rviz_debug_image",
+            10,
+        )
 
-        self.detector_sub = self.create_subscription(
-            Detection2DArray, '/tracked_detections', self.detection_callback, detection_qos)
+        self.get_logger().info("Display node started")
 
-        self.rviz_pub = self.create_publisher(
-            Image, '/rviz_debug_image', 10)
+    def detection_callback(self, msg: Detection2DArray):
+        """Store the latest tracked detections for the next image frame."""
+        self.latest_detections = msg
 
-    def detection_callback(self, msg):
-        self.latest_msg = msg
-        # self.latest_msg.append(msg)
-        # self.latest_msg = self.latest_msg[-10:]
+    def image_callback(self, msg: Image):
+        """Draw the latest detections on an incoming camera frame."""
+        frame = self.bridge.imgmsg_to_cv2(
+            msg,
+            desired_encoding="bgr8",
+        )
 
-    def image_callback(self, msg):
+        if self.latest_detections is not None:
+            for detection in self.latest_detections.detections:
+                cx = detection.bbox.center.position.x
+                cy = detection.bbox.center.position.y
+                width = detection.bbox.size_x
+                height = detection.bbox.size_y
 
-        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        # frame = cv2.flip(frame, 1)
+                x_min = int(cx - width / 2)
+                y_min = int(cy - height / 2)
+                x_max = int(cx + width / 2)
+                y_max = int(cy + height / 2)
 
-        if self.latest_msg is not None:
-            for det in self.latest_msg.detections:
-                # 1. vision_msgs uses Center X, Center Y, Width, Height
-                cx = det.bbox.center.position.x
-                cy = det.bbox.center.position.y
-                w = det.bbox.size_x
-                h = det.bbox.size_y
-
-                # 2. Convert to Top-Left and Bottom-Right for OpenCV drawing
-                x_min = int(cx - (w / 2))
-                y_min = int(cy - (h / 2))
-                x_max = int(cx + (w / 2))
-                y_max = int(cy + (h / 2))
-
-                # 3. Get Class ID and Score from the results list
-                # Most detectors put the best match at index 0
-                if len(det.results) > 0:
-                    class_id = det.results[0].hypothesis.class_id
-                    score = det.results[0].hypothesis.score
-                    track_id = det.id
-                    label = f'{class_id} ID:{track_id} {score:.2f}'
+                if detection.results:
+                    hypothesis = detection.results[0].hypothesis
+                    label = (
+                        f"{hypothesis.class_id} "
+                        f"ID:{detection.id} "
+                        f"{hypothesis.score:.2f}"
+                    )
                 else:
                     label = "Object"
 
-                # 4. Draw
-                cv2.rectangle(frame, (x_min, y_min),
-                              (x_max, y_max), (0, 255, 0), 2)
-                cv2.putText(frame, label, (x_min, max(20, y_min - 10)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                cv2.rectangle(
+                    frame,
+                    (x_min, y_min),
+                    (x_max, y_max),
+                    (0, 255, 0),
+                    2,
+                )
+                cv2.putText(
+                    frame,
+                    label,
+                    (x_min, max(20, y_min - 10)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 0),
+                    2,
+                )
 
-            out_msg = self.bridge.cv2_to_imgmsg(frame, "bgr8")
-            out_msg.header = msg.header  # Keep the timestamp same as image
-            self.rviz_pub.publish(out_msg)
+            output_msg = self.bridge.cv2_to_imgmsg(frame, "bgr8")
+            output_msg.header = msg.header
+            self.debug_image_pub.publish(output_msg)
 
-        cv2.imshow('YOLO/MediaPipe Detections', frame)
+        cv2.imshow("YOLO/MediaPipe Detections", frame)
         cv2.waitKey(1)
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = DisplayNode()
-    
+
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         if rclpy.ok():
-            node.get_logger().info('Display node stopping...')
+            node.get_logger().info("Display node stopping...")
     finally:
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

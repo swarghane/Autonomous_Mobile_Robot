@@ -1,0 +1,13 @@
+tracker_node:
+  ros__parameters:
+    detections_topic: /detections
+    tracked_detections_topic: /tracked_detections
+
+    iou_threshold: 0.3
+    max_age: 30
+    min_hits: 4
+    max_publish_age: 2
+
+    kalman_covariance_scale: 10.0
+    kalman_measurement_noise: 1.0
+    kalman_process_noise: 0.01

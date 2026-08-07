@@ -1,0 +1,12 @@
+display_node:
+  ros__parameters:
+    image_topic: /camera/image_raw
+    detections_topic: /tracked_detections
+    debug_image_topic: /rviz_debug_image
+    window_name: YOLO/MediaPipe Detections
+    show_window: true
+    rectangle_thickness: 2
+    font_scale: 0.6
+    text_thickness: 2
+    label_y_offset: 10
+    minimum_label_y: 20

@@ -1,0 +1,13 @@
+detector_node:
+  ros__parameters:
+    model_path: /workspace/models/vision/yolov8n-pose.engine
+    conf_threshold: 0.6
+    imgsz: 640
+    persistence_time: 0.3
+    gesture_hold_sec: 1.0
+    gesture_cooldown_sec: 5.0
+    image_topic: /camera/image_raw
+    detections_topic: /detections
+    audio_enabled_topic: /audio_enabled
+    warmup: true
+    executor_threads: 4

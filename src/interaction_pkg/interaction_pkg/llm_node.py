@@ -19,15 +19,17 @@ load_dotenv(dotenv_path="/workspace/.env", override=True)
 class LLMNode(Node):
     def __init__(self):
         super().__init__('llm_node')
-        self._req_count      = 0
-        self.last_request    = 0
-        self.min_interval    = 4.0
+        self._req_count = 0
+        self.last_request = 0
+        self.declare_parameter('min_interval', 4.0)
+        self.min_interval = self.get_parameter('min_interval').value
 
-        self.bridge           = CvBridge()
-        self.latest_frame     = None          # cached camera frame for on-demand vision
-        self.frame_lock        = threading.Lock()
+        self.bridge = CvBridge()
+        self.latest_frame = None
+        self.frame_lock = threading.Lock()
         self.last_vision_time = 0
-        self.vision_cooldown  = 3.0            # avoid spamming vision calls
+        self.declare_parameter('vision_cooldown', 3.0)
+        self.vision_cooldown = self.get_parameter('vision_cooldown').value
 
         self.latest_battery_pct = None
 
@@ -43,48 +45,55 @@ class LLMNode(Node):
             timeout=10.0
         )
 
-        self.chat_model   = 'meta/llama-3.1-8b-instruct'
-        self.vision_model = 'meta/llama-3.2-11b-vision-instruct'
+        self.declare_parameter('chat_model', 'meta/llama-3.1-8b-instruct')
+        self.chat_model = self.get_parameter('chat_model').value
+        self.declare_parameter('vision_model', 'meta/llama-3.2-11b-vision-instruct')
+        self.vision_model = self.get_parameter('vision_model').value
+        self.declare_parameter('vision_max_dimension', 640)
+        self.vision_max_dimension = self.get_parameter('vision_max_dimension').value
+        self.declare_parameter('vision_jpeg_quality', 80)
+        self.vision_jpeg_quality = self.get_parameter('vision_jpeg_quality').value
 
-        self.pub    = self.create_publisher(String, '/llm_response', 10)
-        # Drives the web UI's existing mode switch (see app.js: uiModeListener
-        # on /robot_ui_mode, expects 'face' or 'vision', lowercase).
-        self.ui_pub = self.create_publisher(String, '/robot_ui_mode', 10)
+        self.declare_parameter('llm_response_topic', '/llm_response')
+        self.declare_parameter('robot_ui_mode_topic', '/robot_ui_mode')
+        self.declare_parameter('voice_command_topic', '/voice_command')
+        self.declare_parameter('camera_topic', '/camera/image_raw')
+        self.declare_parameter('battery_topic', '/battery_status')
+        self.llm_response_topic = self.get_parameter('llm_response_topic').value
+        self.robot_ui_mode_topic = self.get_parameter('robot_ui_mode_topic').value
+        self.voice_command_topic = self.get_parameter('voice_command_topic').value
+        self.camera_topic = self.get_parameter('camera_topic').value
+        self.battery_topic = self.get_parameter('battery_topic').value
+        self.pub = self.create_publisher(String, self.llm_response_topic, 10)
+        self.ui_pub = self.create_publisher(String, self.robot_ui_mode_topic, 10)
 
-        # De-dupe: many STT/wake-word pipelines re-publish the same
-        # recognised phrase 2-3 times (partial + final results, or a
-        # repeated trigger while the phrase stays "active"). Without this,
-        # every branch below fires once per duplicate.
-        self._last_cmd       = None
-        self._last_cmd_time  = 0.0
-        self._dedupe_window  = 3.0   # seconds
+        self._last_cmd = None
+        self._last_cmd_time = 0.0
+        self.declare_parameter('dedupe_window', 3.0)
+        self._dedupe_window = self.get_parameter('dedupe_window').value
 
-        self.create_subscription(String, '/voice_command', self.command_callback, 10)
+        self.create_subscription(String, self.voice_command_topic, self.command_callback, 10)
         self.create_subscription(
-            Image, '/camera/image_raw', self.camera_callback,
-            qos_profile_sensor_data   # matches typical camera driver QoS (BEST_EFFORT)
+            Image, self.camera_topic, self.camera_callback,
+            qos_profile_sensor_data
         )
-        self.create_subscription(Float32, '/battery_status', self._battery_callback, 10)
+        self.create_subscription(Float32, self.battery_topic, self._battery_callback, 10)
 
         self.get_logger().info(f'★ LLM ready — chat: {self.chat_model}')
 
     def command_callback(self, msg: String):
-        cmd       = msg.data.strip()
+        t_received = time.time()
+        cmd = msg.data.strip()
         cmd_lower = cmd.lower()
         cmd_upper = cmd.upper()
 
-        # ── Global de-dupe ──────────────────────────────────
-        # Ignore an identical command repeated within the dedupe window —
-        # stops "follow me", "describe scene", etc. from firing 2-3x when
-        # the STT node re-publishes the same recognised phrase.
         now = time.time()
         if cmd_upper == self._last_cmd and (now - self._last_cmd_time) < self._dedupe_window:
             self.get_logger().info(f'[LLM] Duplicate command ignored: "{cmd}"')
             return
-        self._last_cmd      = cmd_upper
+        self._last_cmd = cmd_upper
         self._last_cmd_time = now
 
-        # ── UI control: "face" / "vision" / "feed" ─────────
         if 'face' in cmd_lower:
             self._publish_ui('face')
             self._publish_response("Okay, showing my face.")
@@ -95,21 +104,16 @@ class LLMNode(Node):
             self._publish_response("Okay, showing the camera feed.")
             return
 
-        # ── Battery status ──────────────────────────────────
-        if 'battery' in cmd_lower:
+        if cmd_upper == 'BATTERY_STATUS' or any(x in cmd_lower for x in [
+            'battery', 'batteries', 'batery', 'battery level', 'battery status',
+            'battery percentage', 'power level', 'power status', 'charge level',
+            'remaining charge', 'remaining battery',
+        ]):
             self._report_battery()
             return
 
-        # ── Describe scene: one-shot vision query ──────────
         if cmd_upper == 'DESCRIBE_SCENE' or 'describe' in cmd_lower:
-            self._trigger_vision()
-            return
-
-        # Exploration/roam and follow-me are handled entirely by
-        # decision_node now (default AUTO = roam, FOLLOW_PERSON/SEARCH =
-        # follow). llm_node just acknowledges so the person gets feedback.
-        if 'follow' in cmd_lower:
-            self._publish_response("Looking for you now. I will follow you.")
+            self._trigger_vision(t_received)
             return
 
         if ('explore' in cmd_lower or 'roam' in cmd_lower) and 'stop' not in cmd_lower:
@@ -129,18 +133,16 @@ class LLMNode(Node):
             return
         self.last_request = now
 
-        threading.Thread(target=self._query_chat, args=(cmd,), daemon=True).start()
+        threading.Thread(target=self._query_chat, args=(cmd, t_received), daemon=True).start()
 
     def camera_callback(self, msg: Image):
-        # Always cache the latest frame (cheap) so a "describe scene"
-        # command can use an up-to-date image without a live polling loop.
         with self.frame_lock:
             first_frame = self.latest_frame is None
             self.latest_frame = msg
         if first_frame:
             self.get_logger().info('[LLM] ✅ First camera frame received.')
 
-    def _trigger_vision(self):
+    def _trigger_vision(self, t_received=None):
         now = time.time()
         if now - self.last_vision_time < self.vision_cooldown:
             self.get_logger().warn('[LLM] Vision request too soon — dropped.')
@@ -154,7 +156,7 @@ class LLMNode(Node):
             return
 
         self.last_vision_time = now
-        threading.Thread(target=self._query_vision, args=(frame,), daemon=True).start()
+        threading.Thread(target=self._query_vision, args=(frame, t_received), daemon=True).start()
 
     def _battery_callback(self, msg: Float32):
         self.latest_battery_pct = msg.data
@@ -172,8 +174,9 @@ class LLMNode(Node):
         self.ui_pub.publish(out)
         self.get_logger().info(f'[UI] /robot_ui_mode → {mode}')
 
-    def _query_chat(self, cmd: str):
+    def _query_chat(self, cmd: str, t_received=None):
         self._req_count += 1
+        t0 = time.time()
         self.get_logger().info(f'[LLM] Query #{self._req_count}: "{cmd}"')
         try:
             response = self.client.chat.completions.create(
@@ -192,6 +195,8 @@ class LLMNode(Node):
                 max_tokens=60,
                 temperature=0.7
             )
+            t1 = time.time()
+            self.get_logger().info(f'[TIMING][chat] API call: {t1 - t0:.2f}s')
 
             text = response.choices[0].message.content
             if not text:
@@ -201,15 +206,43 @@ class LLMNode(Node):
 
             text = text.strip().replace('*', '').replace('_', '').replace('#', '')
             self._publish_response(text)
+            t2 = time.time()
+            self.get_logger().info(f'[TIMING][chat] TOTAL query_start → published: {t2 - t0:.2f}s')
+            if t_received is not None:
+                self.get_logger().info(
+                    f'[TIMING][chat] TOTAL command_received → published: {t2 - t_received:.2f}s'
+                )
 
         except Exception as e:
             self.get_logger().error(f'[LLM] Chat failed: {type(e).__name__}: {e}')
 
-    def _query_vision(self, img_msg: Image):
+    def _query_vision(self, img_msg: Image, t_received=None):
         try:
-            cv_frame     = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding="bgr8")
-            _, buffer    = cv2.imencode(".jpg", cv_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+            t0 = time.time()
+            cv_frame = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding="bgr8")
+            t1 = time.time()
+
+            h, w = cv_frame.shape[:2]
+            longer_side = max(h, w)
+            if longer_side > self.vision_max_dimension:
+                scale = self.vision_max_dimension / longer_side
+                cv_frame = cv2.resize(
+                    cv_frame,
+                    (int(w * scale), int(h * scale)),
+                    interpolation=cv2.INTER_AREA
+                )
+            t2 = time.time()
+
+            _, buffer = cv2.imencode(
+                ".jpg", cv_frame, [int(cv2.IMWRITE_JPEG_QUALITY), self.vision_jpeg_quality]
+            )
             base64_image = base64.b64encode(buffer).decode("utf-8")
+            t3 = time.time()
+            self.get_logger().info(
+                f'[TIMING][vision] cv_convert={t1-t0:.2f}s resize={t2-t1:.2f}s '
+                f'encode={t3-t2:.2f}s frame={cv_frame.shape[1]}x{cv_frame.shape[0]} '
+                f'payload_kb={len(base64_image)/1024:.0f}'
+            )
 
             response = self.client.chat.completions.create(
                 model=self.vision_model,
@@ -230,9 +263,11 @@ class LLMNode(Node):
                         }
                     ]
                 }],
-                max_tokens=60,
-                temperature=0.5
+                max_tokens=50,
+                temperature=0.4
             )
+            t4 = time.time()
+            self.get_logger().info(f'[TIMING][vision] API call: {t4-t3:.2f}s | TOTAL: {t4-t0:.2f}s')
 
             text = response.choices[0].message.content
             if not text:
@@ -240,6 +275,10 @@ class LLMNode(Node):
                 return
             text = text.strip().replace('*', '').replace('_', '').replace('#', '')
             self._publish_response(text)
+            if t_received is not None:
+                self.get_logger().info(
+                    f'[TIMING][vision] TOTAL command_received → published: {time.time() - t_received:.2f}s'
+                )
 
         except Exception as e:
             self.get_logger().error(f'[LLM] Vision failed: {type(e).__name__}: {e}')
@@ -247,8 +286,8 @@ class LLMNode(Node):
 
     def _publish_response(self, text: str):
         self.get_logger().info(f'[LLM] → "{text}"')
-        out      = String()
-        out.data = ". " + text
+        out = String()
+        out.data = text.strip()
         self.pub.publish(out)
 
 
@@ -262,7 +301,7 @@ def main(args=None):
             node.get_logger().info('LLM node stopping...')
     finally:
         node.destroy_node()
-        if rclpy.ok():     
+        if rclpy.ok():
             rclpy.shutdown()
 
 

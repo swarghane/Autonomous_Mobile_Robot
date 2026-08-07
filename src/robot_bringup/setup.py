@@ -12,8 +12,6 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch',
          ['launch/my_robot.launch.py']),
-        ('share/' + package_name + '/launch',
-         ['launch/my_robot_v1.launch.py']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

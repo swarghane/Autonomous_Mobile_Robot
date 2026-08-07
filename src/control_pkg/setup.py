@@ -27,10 +27,8 @@ setup(
     entry_points={
         'console_scripts': [
             'decision_node=control_pkg.decision_node:main',
-            'decision_node_lidar_camera=control_pkg.decision_node_lidar_camera:main',
             'display_node=control_pkg.display_node:main',
             'motor_control_node=control_pkg.motor_control_node:main',
-            'motor_control_node_WO_batterystats=control_pkg.motor_control_node_WO_batterystats:main',
             'watchdog_node=control_pkg.watchdog_node:main',
         ],
     },

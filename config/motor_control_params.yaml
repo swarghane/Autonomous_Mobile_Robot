@@ -1,0 +1,27 @@
+motor_control_node:
+  ros__parameters:
+    cmd_vel_topic: /cmd_vel
+    battery_status_topic: /battery_status
+
+    serial_port: /dev/ttyACM0
+    baudrate: 115200
+    serial_timeout: 1.0
+
+    stop_linear_threshold: 0.02
+    stop_angular_threshold: 0.02
+    search_turn_multiplier: 250.0
+    base_speed_multiplier: 250.0
+    follow_turn_multiplier: 150.0
+    right_motor_correction: 0.90
+    max_pwm: 255
+    motor_deadzone: 15
+
+    reconnect_delay: 2.0
+    serial_error_delay: 1.0
+
+    adc_max_raw: 4095
+    adc_vref: 3.3
+    r1_ohms: 100000.0
+    r2_ohms: 33000.0
+    battery_full_voltage: 12.6
+    battery_empty_voltage: 9.0

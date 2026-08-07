@@ -29,7 +29,7 @@ setup(
             "camera_node = perception_pkg.camera_node:main",
             "detector_node = perception_pkg.detector_node:main",
             "tracking_node = perception_pkg.tracking_node:main",
-            "obstacle_detection_node = perception_pkg.obstacle_detection_node:main"
+            "obstacle_detection_node = perception_pkg.obstacle_detection_node:main",
         ],
     },
 )

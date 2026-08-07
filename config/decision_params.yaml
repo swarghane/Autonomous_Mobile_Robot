@@ -1,0 +1,28 @@
+decision_node:
+  ros__parameters:
+    target_timeout: 2.0
+    frame_width: 640
+    turn_threshold: 60
+    stop_width: 450
+
+    turn_speed_rad_s: 0.6
+    measured_turn_rate_rad_s: 1.2
+    turn_angle_deg: 90.0
+    linear_speed_m_s: 0.25
+    linear_distance_m: 0.20
+    control_timer_period: 0.05
+
+    obstacle_stop_duration: 1.0
+    obstacle_turn_speed: 0.8
+
+    roam_linear_speed: 0.4
+    roam_angular_speed: 0.15
+
+    near_target_width: 250
+    near_target_linear_speed: 0.08
+    near_target_angular_gain: 0.002
+
+    far_target_linear_speed: 0.5
+    far_target_angular_gain: 0.003
+
+    center_deadband: 25

@@ -1,0 +1,28 @@
+watchdog_node:
+  ros__parameters:
+    scan_topic: /scan
+    obstacle_topic: /obstacle_detected
+    tracked_detections_topic: /tracked_detections
+    camera_topic: /camera/image_raw
+    cmd_vel_topic: /cmd_vel
+    battery_topic: /battery_status
+    emergency_stop_topic: /emergency_stop
+    speech_topic: /llm_response
+    emotion_topic: /robot_emotion
+
+    scan_timeout: 1.5
+    obstacle_timeout: 1.5
+    tracked_detection_timeout: 2.5
+    camera_timeout: 2.0
+    cmd_vel_timeout: 2.0
+
+    battery_warn_pct: 20.0
+    battery_critical_pct: 10.0
+    battery_stale_sec: 15.0
+
+    critical_distance_m: 0.28
+    forward_cone_deg: 25.0
+    min_forward_linear_x: 0.05
+
+    check_rate_hz: 5.0
+    startup_grace_sec: 10.0
