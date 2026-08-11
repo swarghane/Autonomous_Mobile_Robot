@@ -29,7 +29,7 @@ class TTSNode(Node):
             'noise_w_scale': 0.70,
         },
         'en_US-hfc_female-medium': {
-            'length_scale': 1.05,
+            'length_scale': 1.15,
             'noise_scale': 0.62,
             'noise_w_scale': 0.75,
         },
@@ -38,7 +38,7 @@ class TTSNode(Node):
     def __init__(self):
         super().__init__('tts_node')
 
-        self.declare_parameter('piper_voice', 'en_US-hfc_male-medium')
+        self.declare_parameter('piper_voice', 'en_US-hfc_female-medium')
         self.declare_parameter('piper_data_dir', '/workspace/models/piper')
         self.declare_parameter('use_voice_profile', True)
         self.declare_parameter('length_scale', 0.94)

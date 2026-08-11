@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Float32
+from std_msgs.msg import String, Float32, Bool
 from sensor_msgs.msg import Image
 from rclpy.qos import qos_profile_sensor_data
 from cv_bridge import CvBridge
@@ -32,6 +32,9 @@ class LLMNode(Node):
         self.vision_cooldown = self.get_parameter('vision_cooldown').value
 
         self.latest_battery_pct = None
+        self.latest_obstacle = None
+        self.latest_front_distance = None
+        self.latest_free_direction = None
 
         api_key = os.environ.get('NVIDIA_API_KEY', '').strip()
         if not api_key:
@@ -59,11 +62,17 @@ class LLMNode(Node):
         self.declare_parameter('voice_command_topic', '/voice_command')
         self.declare_parameter('camera_topic', '/camera/image_raw')
         self.declare_parameter('battery_topic', '/battery_status')
+        self.declare_parameter('obstacle_topic', '/obstacle_detected')
+        self.declare_parameter('front_distance_topic', '/front_distance')
+        self.declare_parameter('free_direction_topic', '/free_direction')
         self.llm_response_topic = self.get_parameter('llm_response_topic').value
         self.robot_ui_mode_topic = self.get_parameter('robot_ui_mode_topic').value
         self.voice_command_topic = self.get_parameter('voice_command_topic').value
         self.camera_topic = self.get_parameter('camera_topic').value
         self.battery_topic = self.get_parameter('battery_topic').value
+        self.obstacle_topic = self.get_parameter('obstacle_topic').value
+        self.front_distance_topic = self.get_parameter('front_distance_topic').value
+        self.free_direction_topic = self.get_parameter('free_direction_topic').value
         self.pub = self.create_publisher(String, self.llm_response_topic, 10)
         self.ui_pub = self.create_publisher(String, self.robot_ui_mode_topic, 10)
 
@@ -78,6 +87,9 @@ class LLMNode(Node):
             qos_profile_sensor_data
         )
         self.create_subscription(Float32, self.battery_topic, self._battery_callback, 10)
+        self.create_subscription(Bool, self.obstacle_topic, self._obstacle_callback, 10)
+        self.create_subscription(Float32, self.front_distance_topic, self._front_distance_callback, 10)
+        self.create_subscription(String, self.free_direction_topic, self._free_direction_callback, 10)
 
         self.get_logger().info(f'★ LLM ready — chat: {self.chat_model}')
 
@@ -94,12 +106,12 @@ class LLMNode(Node):
         self._last_cmd = cmd_upper
         self._last_cmd_time = now
 
-        if 'face' in cmd_lower:
+        if cmd_lower == 'face' or any(x in cmd_lower for x in ['show face', 'show my face']):
             self._publish_ui('face')
             self._publish_response("Okay, showing my face.")
             return
 
-        if 'vision' in cmd_lower or 'feed' in cmd_lower or 'camera' in cmd_lower:
+        if cmd_lower in {'vision', 'feed', 'camera'} or any(x in cmd_lower for x in ['show vision', 'show feed', 'show camera', 'camera feed']):
             self._publish_ui('vision')
             self._publish_response("Okay, showing the camera feed.")
             return
@@ -112,8 +124,13 @@ class LLMNode(Node):
             self._report_battery()
             return
 
-        if cmd_upper == 'DESCRIBE_SCENE' or 'describe' in cmd_lower:
-            self._trigger_vision(t_received)
+        if self._is_obstacle_status_question(cmd_lower):
+            self._report_obstacle_status()
+            return
+
+        if cmd_upper == 'DESCRIBE_SCENE' or self._is_vision_question(cmd_lower):
+            vision_question = "Describe what you see around you." if cmd_upper == 'DESCRIBE_SCENE' else cmd
+            self._trigger_vision(vision_question, t_received)
             return
 
         if ('explore' in cmd_lower or 'roam' in cmd_lower) and 'stop' not in cmd_lower:
@@ -142,7 +159,7 @@ class LLMNode(Node):
         if first_frame:
             self.get_logger().info('[LLM] ✅ First camera frame received.')
 
-    def _trigger_vision(self, t_received=None):
+    def _trigger_vision(self, question, t_received=None):
         now = time.time()
         if now - self.last_vision_time < self.vision_cooldown:
             self.get_logger().warn('[LLM] Vision request too soon — dropped.')
@@ -156,7 +173,49 @@ class LLMNode(Node):
             return
 
         self.last_vision_time = now
-        threading.Thread(target=self._query_vision, args=(frame, t_received), daemon=True).start()
+        threading.Thread(target=self._query_vision, args=(frame, question, t_received), daemon=True).start()
+
+    def _is_obstacle_status_question(self, cmd_lower):
+        obstacle_words = ['obstacle', 'blocked', 'blocking', 'path clear', 'way clear', 'something in front']
+        status_words = ['check', 'is there', 'are there', 'nearby', 'ahead', 'in front', 'distance', 'how far', 'clear']
+        identity_words = ['what is', 'what are', 'which object', 'identify', 'recognize', 'look like']
+        return any(x in cmd_lower for x in obstacle_words) and any(x in cmd_lower for x in status_words) and not any(x in cmd_lower for x in identity_words)
+
+    def _is_vision_question(self, cmd_lower):
+        vision_phrases = [
+            'what do you see', 'what can you see', 'describe', 'look around',
+            'look in front', 'what is in front', 'what is ahead', 'can you see',
+            'do you see', 'how many people', 'how many persons', 'how many objects',
+            'what color', 'what colour', 'what object', 'which object', 'identify',
+            'recognize', 'recognise', 'what is the obstacle', 'what are the obstacles',
+            'what is blocking', 'who is in front', 'who do you see'
+        ]
+        return any(x in cmd_lower for x in vision_phrases)
+
+    def _obstacle_callback(self, msg: Bool):
+        self.latest_obstacle = msg.data
+
+    def _front_distance_callback(self, msg: Float32):
+        self.latest_front_distance = msg.data
+
+    def _free_direction_callback(self, msg: String):
+        self.latest_free_direction = msg.data.strip().upper()
+
+    def _report_obstacle_status(self):
+        if self.latest_obstacle is None:
+            self._publish_response("I don't have obstacle sensor data yet.")
+            return
+        if not self.latest_obstacle:
+            self._publish_response("My lidar does not detect a nearby obstacle in front of me.")
+            return
+        if self.latest_front_distance is not None and self.latest_front_distance > 0:
+            distance_cm = self.latest_front_distance * 100.0
+            if self.latest_free_direction in {'LEFT', 'RIGHT'}:
+                self._publish_response(f"There is an obstacle about {distance_cm:.0f} centimeters ahead. The {self.latest_free_direction.lower()} side is clearer.")
+            else:
+                self._publish_response(f"There is an obstacle about {distance_cm:.0f} centimeters ahead.")
+            return
+        self._publish_response("I detect a nearby obstacle in front of me.")
 
     def _battery_callback(self, msg: Float32):
         self.latest_battery_pct = msg.data
@@ -216,7 +275,7 @@ class LLMNode(Node):
         except Exception as e:
             self.get_logger().error(f'[LLM] Chat failed: {type(e).__name__}: {e}')
 
-    def _query_vision(self, img_msg: Image, t_received=None):
+    def _query_vision(self, img_msg: Image, question: str, t_received=None):
         try:
             t0 = time.time()
             cv_frame = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding="bgr8")
@@ -253,8 +312,10 @@ class LLMNode(Node):
                             "type": "text",
                             "text": (
                                 "You are Vector, an autonomous mobile robot. "
-                                "In one or two sentences under 25 words, describe what you see. "
-                                "Note any people, paths, or obstacles. Plain text only."
+                                "Answer the user's question using only what is visible in this camera image. "
+                                "If the image does not provide enough evidence, say that clearly. "
+                                "Keep the answer to one or two sentences under 25 words. Plain text only. "
+                                f"User question: {question}"
                             )
                         },
                         {
