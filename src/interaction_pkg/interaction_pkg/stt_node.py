@@ -9,7 +9,7 @@ import threading
 import queue
 from scipy.signal import resample_poly
 
-                                            
+
 class STTNode(Node):
     def __init__(self):
         super().__init__('stt_node')
