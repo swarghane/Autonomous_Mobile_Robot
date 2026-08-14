@@ -26,6 +26,9 @@ class DecisionNode(Node):
         self.obstacle_detected = False
         self.front_distance = 999.0
         self.free_direction = 'LEFT'
+        self.obstacle_log_active = False
+        self.last_motion_log_time = 0.0
+        self.motion_log_interval = 1.0
 
         # AUTO roams or follows, STOP blocks motion, and MANEUVER runs a timed command.
         self.voice_mode = 'AUTO'
@@ -276,6 +279,13 @@ class DecisionNode(Node):
     def _stop(self):
         self.cmd_vel_pub.publish(Twist())
 
+    def _log_motion(self, text):
+        now = time.monotonic()
+
+        if now - self.last_motion_log_time >= self.motion_log_interval:
+            self.get_logger().info(text)
+            self.last_motion_log_time = now
+
     def detection_callback(self, msg: Detection2DArray):
         """Generate autonomous obstacle, roaming, and person-following commands."""
         if self.estop_active:
@@ -302,12 +312,18 @@ class DecisionNode(Node):
                 twist.angular.z = 0.8 if self.free_direction == 'LEFT' else -0.8
 
             self.cmd_vel_pub.publish(twist)
-            self.get_logger().warn(
-                f'Obstacle detected | Distance: {self.front_distance:.2f} m'
-            )
+            if not self.obstacle_log_active:
+                self.get_logger().warn(
+                    f'Obstacle detected | Distance: {self.front_distance:.2f} m'
+                )
+                self.obstacle_log_active = True
+
             return
 
         self.obstacle_start_time = None
+        if self.obstacle_log_active:
+            self.get_logger().info('Obstacle cleared')
+            self.obstacle_log_active = False
 
         person_detections = []
         if self.follow_enabled:
@@ -324,13 +340,13 @@ class DecisionNode(Node):
 
                 if elapsed < self.target_timeout:
                     self.cmd_vel_pub.publish(twist)
-                    self.get_logger().info('Temporary target loss')
+                    self._log_motion('Temporary target loss')
                     return
 
             twist.linear.x = 0.4
             twist.angular.z = 0.15
             self.cmd_vel_pub.publish(twist)
-            self.get_logger().info('Roaming freely')
+            self._log_motion('Roaming freely')
             return
 
         target = None
@@ -371,7 +387,7 @@ class DecisionNode(Node):
             twist.angular.z = 0.0
 
         self.get_logger().info(
-            f'Following target | Error:{error} | '
+            f'Following target | Error:{error:.1f} | '
             f'Distance:{self.front_distance:.2f} m'
         )
         self.cmd_vel_pub.publish(twist)

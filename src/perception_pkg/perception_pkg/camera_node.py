@@ -14,8 +14,8 @@ def gstreamer_pipeline(
     camera_type="csi",
     sensor_id=0,
     device_id=0,
-    capture_width=1920,
-    capture_height=1080,
+    capture_width=1640,
+    capture_height=1232,
     display_width=640,
     display_height=480,
     framerate=30,
@@ -30,7 +30,7 @@ def gstreamer_pipeline(
             f"nvvidconv flip-method={flip_method} ! "
             f"video/x-raw, width={display_width}, height={display_height}, "
             "format=BGRx ! videoconvert ! video/x-raw, format=BGR ! "
-            "appsink drop=true sync=false"
+            "appsink max-buffers=1 drop=true sync=false"
         )
 
     if camera_type == "usb":
@@ -39,7 +39,7 @@ def gstreamer_pipeline(
             f"video/x-raw, width={capture_width}, height={capture_height}, "
             f"framerate={framerate}/1 ! "
             "videoconvert ! video/x-raw, format=BGR ! "
-            "appsink drop=true sync=false"
+            "appsink max-buffers=1 drop=true sync=false"
         )
 
     raise ValueError(f"Unsupported camera_type: {camera_type}")
@@ -56,8 +56,8 @@ class CameraNode(Node):
         self.declare_parameter("sensor_id", 0)
         self.declare_parameter("device_id", 0)
         self.declare_parameter("flip_method", 0)
-        self.declare_parameter("capture_width", 1920)
-        self.declare_parameter("capture_height", 1080)
+        self.declare_parameter("capture_width", 1640)
+        self.declare_parameter("capture_height", 1232)
         self.declare_parameter("image_width", 640)
         self.declare_parameter("image_height", 480)
         self.declare_parameter("camera_fps", 30.0)
@@ -142,6 +142,8 @@ class CameraNode(Node):
         self.total_failed_reads = 0
         self.total_frames_published = 0
         self.last_successful_frame_time = None
+        self.stats_frame_count = 0
+        self.last_stats_log_time = time.monotonic()
 
         # Sensor streams use low-latency QoS so old frames are discarded.
         image_qos = QoSProfile(
@@ -284,6 +286,18 @@ class CameraNode(Node):
             )
 
         self.total_frames_published += 1
+        self.stats_frame_count += 1
+
+        now = time.monotonic()
+        elapsed = now - self.last_stats_log_time
+
+        if elapsed >= self.stats_log_interval_sec:
+            fps = self.stats_frame_count / elapsed
+            self.get_logger().info(
+                f"📷 Camera FPS={fps:.2f} | Total={self.total_frames_published}"
+            )
+            self.stats_frame_count = 0
+            self.last_stats_log_time = now
 
     def destroy_node(self):
         """Release the camera without allowing shutdown to block indefinitely."""

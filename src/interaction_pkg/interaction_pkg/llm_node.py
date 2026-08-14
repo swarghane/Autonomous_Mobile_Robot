@@ -185,7 +185,7 @@ class LLMNode(Node):
                     {
                         "role": "system",
                         "content": (
-                            "You are Vector, a helpful assistant robot. "
+                            "You are Vector, an autonomous mobile robot who helps as an assistant robot. "
                             "Give a friendly, clear, plain text answer in 10 to 15 words. "
                             "Do not use actions, emojis, asterisks, or formatting."
                         )

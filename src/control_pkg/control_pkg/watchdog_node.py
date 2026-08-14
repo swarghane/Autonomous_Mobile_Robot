@@ -151,6 +151,7 @@ class WatchdogNode(Node):
         self.battery_pct = None
         self.battery_last_seen = now
         self.last_cmd_linear_x = 0.0
+        self.last_cmd_angular_z = 0.0
 
         # Multiple faults may exist at once. The e-stop clears only when all
         # active reasons have been removed.
@@ -239,13 +240,12 @@ class WatchdogNode(Node):
 
     def _cmd_vel_callback(self, msg: Twist):
         """Track command liveness and whether the robot is moving forward."""
-        # Ignore watchdog-generated zero commands during an emergency so they
-        # do not hide an unresponsive decision node.
         if self.emergency_active:
             return
 
         self.last_seen["cmd_vel"] = time.time()
         self.last_cmd_linear_x = msg.linear.x
+        self.last_cmd_angular_z = msg.angular.z
 
     def _scan_callback(self, msg: LaserScan):
         """Check scan liveness and detect an immediate forward collision risk."""
@@ -265,13 +265,9 @@ class WatchdogNode(Node):
                 if min_range is None or distance < min_range:
                     min_range = distance
 
-        moving_forward = (
-            self.last_cmd_linear_x > self.min_forward_linear_x
-        )
         critical_distance = (
             min_range is not None
             and min_range < self.critical_distance_m
-            and moving_forward
         )
 
         if critical_distance:
@@ -293,6 +289,9 @@ class WatchdogNode(Node):
 
     def _battery_callback(self, msg: Float32):
         """Store the latest battery percentage and reporting time."""
+        if msg.data <= 0.0 or msg.data > 100.0:
+            return
+        
         self.battery_pct = msg.data
         self.battery_last_seen = time.time()
 
@@ -328,13 +327,31 @@ class WatchdogNode(Node):
             return
 
         for key, timeout in self.timeouts.items():
-            # Startup time is excluded from each topic's timeout age.
             effective_last_seen = max(
                 self.last_seen[key],
                 startup_deadline,
             )
             age = now - effective_last_seen
             reason = f"stale_{key}"
+
+            if key == "cmd_vel" and self.emergency_active:
+                self.last_seen["cmd_vel"] = now
+                if reason in self.active_reasons:
+                    self.active_reasons.discard(reason)
+                    self._clear_spoken(reason)
+                continue
+
+            if key == "cmd_vel":
+                robot_was_moving = (
+                    abs(self.last_cmd_linear_x) > 0.01
+                    or abs(self.last_cmd_angular_z) > 0.01
+                )
+
+                if not robot_was_moving:
+                    if reason in self.active_reasons:
+                        self.active_reasons.discard(reason)
+                        self._clear_spoken(reason)
+                    continue
 
             if age > timeout:
                 if reason not in self.active_reasons:
@@ -374,9 +391,7 @@ class WatchdogNode(Node):
         if self.battery_pct <= self.battery_critical_pct:
             self._speak_once(
                 "battery_critical",
-                "Battery critically low, "
-                f"{self.battery_pct:.0f} percent. "
-                "Please charge me soon.",
+                "Battery critically low, Please charge me soon.",
             )
         elif self.battery_pct <= self.battery_warn_pct:
             self._clear_spoken("battery_critical")
