@@ -46,7 +46,7 @@ class DecisionNode(Node):
         self.measured_turn_rate_rad_s = 1.2
         self.turn_angle_rad = math.radians(90.0)
         self.linear_speed_m_s = 0.25
-        self.linear_distance_m = 0.20
+        self.linear_distance_m = 1.0
 
         qos = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,

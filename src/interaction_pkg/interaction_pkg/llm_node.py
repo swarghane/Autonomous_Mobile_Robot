@@ -255,6 +255,9 @@ class LLMNode(Node):
                                 "You are Vector, an autonomous mobile robot. "
                                 "In one or two sentences under 25 words, describe what you see. "
                                 "Note any people, paths, or obstacles. Plain text only."
+                                "If the requested detail cannot be clearly determined from the image, "
+                                "say that you cannot determine it. Do not guess colors, counts, identities, "
+                                "distances, or objects that are not clearly visible."
                             )
                         },
                         {
