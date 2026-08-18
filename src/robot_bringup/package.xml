@@ -3,8 +3,8 @@
 <package format="3">
   <name>robot_bringup</name>
   <version>0.0.0</version>
-  <description>Main bringup package to launch all robot sub-systems</description>
-  <maintainer email="sourabhwarghane@gmail.com">swarghane</maintainer>
+  <description>ROS 2 bringup package for launching and configuring the complete autonomous mobile robot system.</description>
+  <maintainer email="sourabhwarghane@gmail.com">Sourabh Warghane</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>

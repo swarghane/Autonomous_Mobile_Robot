@@ -15,10 +15,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='swarghane',
+    maintainer='Sourabh Warghane',
     maintainer_email='sourabhwarghane@gmail.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='ROS 2 control package for autonomous navigation, obstacle-aware decision making, motor control, and robot safety.',
+    license='Apache-2.0',
     extras_require={
         'test': [
             'pytest',
