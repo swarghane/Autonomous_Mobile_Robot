@@ -4,7 +4,7 @@
   <name>interaction_pkg</name>
   <version>0.0.0</version>
   <description>ROS 2 human-robot interaction package providing wake-word detection, speech recognition, LLM-based interaction, vision queries, and text-to-speech.</description>
-  <maintainer email="sourabhwarghane@gmail.com">Sourabh Warghane</maintainer>
+  <maintainer email="sourabhwarghane@gmail.com">swarghane</maintainer>
   <license>Apache-2.0</license>
 
   <test_depend>ament_copyright</test_depend>

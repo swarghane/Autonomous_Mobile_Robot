@@ -4,7 +4,7 @@
   <name>perception_pkg</name>
   <version>0.0.0</version>
   <description>ROS 2 perception package for camera processing, TensorRT-based object detection, object tracking, and LiDAR obstacle perception.'</description>
-  <maintainer email="sourabhwarghane@gmail.com">Sourabh Warghane</maintainer>
+  <maintainer email="sourabhwarghane@gmail.com">swarghane</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>

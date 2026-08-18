@@ -4,7 +4,7 @@
   <name>robot_bringup</name>
   <version>0.0.0</version>
   <description>ROS 2 bringup package for launching and configuring the complete autonomous mobile robot system.</description>
-  <maintainer email="sourabhwarghane@gmail.com">Sourabh Warghane</maintainer>
+  <maintainer email="sourabhwarghane@gmail.com">swarghane</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
