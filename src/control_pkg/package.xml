@@ -4,7 +4,7 @@
   <name>control_pkg</name>
   <version>0.0.0</version>
   <description>ROS 2 control package for managing the robot's movement and operations.</description>
-  <maintainer email="sourabhwarghane@gmail.com">swarghane</maintainer>
+  <maintainer email="sourabhwarghane@gmail.com">Sourabh Warghane</maintainer>
   <license>Apache-2.0</license>
 
   <test_depend>ament_copyright</test_depend>

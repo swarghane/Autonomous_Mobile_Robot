@@ -27,6 +27,14 @@ class DecisionNode(Node):
         self.front_distance = 999.0
         self.free_direction = 'LEFT'
         self.obstacle_log_active = False
+        self.avoidance_active = False
+        self.avoidance_direction = self.free_direction
+        self.avoidance_start_time = 0.0
+        self.avoidance_clear_since = None
+        self.avoidance_stop_duration = 1.0
+        self.avoidance_min_turn_duration = 0.8
+        self.avoidance_clear_confirm_duration = 0.4
+        self.avoidance_turn_speed = 0.8
         self.last_motion_log_time = 0.0
         self.motion_log_interval = 1.0
 
@@ -110,6 +118,25 @@ class DecisionNode(Node):
 
     def obstacle_callback(self, msg: Bool):
         self.obstacle_detected = msg.data
+        now = time.monotonic()
+
+        if msg.data:
+            self.avoidance_clear_since = None
+
+            if not self.avoidance_active and self.voice_mode == 'AUTO':
+                self.avoidance_active = True
+                self.avoidance_direction = self.free_direction
+                self.avoidance_start_time = now
+
+                if not self.obstacle_log_active:
+                    self.get_logger().warn(
+                        f'Obstacle detected | Distance: {self.front_distance:.2f} m | '
+                        f'Avoiding {self.avoidance_direction}'
+                    )
+                    self.obstacle_log_active = True
+
+        elif self.avoidance_active and self.avoidance_clear_since is None:
+            self.avoidance_clear_since = now
 
     def distance_callback(self, msg: Float32):
         self.front_distance = msg.data
@@ -118,14 +145,17 @@ class DecisionNode(Node):
         self.free_direction = msg.data
 
     def emergency_stop_callback(self, msg: Bool):
+        was_active = self.estop_active
         self.estop_active = msg.data
 
         if self.estop_active:
             self._stop()
-            self.get_logger().error(
-                '🛑 [WATCHDOG] Emergency stop ACTIVE — overriding all motion'
-            )
-        else:
+
+            if not was_active:
+                self.get_logger().error(
+                    '🛑 [WATCHDOG] Emergency stop ACTIVE — overriding all motion'
+                )
+        elif was_active:
             self.get_logger().info(
                 '✅ [WATCHDOG] Emergency stop CLEARED — resuming normal operation'
             )
@@ -255,9 +285,55 @@ class DecisionNode(Node):
         )
 
     def _control_loop(self):
-        """Maintain emergency-stop, timed-maneuver, and stopped states at 20 Hz."""
+        """Maintain emergency-stop, obstacle-avoidance, maneuver, and stop states."""
         if self.estop_active:
             self._stop()
+            return
+
+        if self.voice_mode == 'STOP':
+            self._stop()
+            return
+
+        if self.avoidance_active:
+            now = time.monotonic()
+            elapsed = now - self.avoidance_start_time
+            minimum_turn_end = (
+                self.avoidance_stop_duration
+                + self.avoidance_min_turn_duration
+            )
+
+            clear_confirmed = (
+                not self.obstacle_detected
+                and self.avoidance_clear_since is not None
+                and elapsed >= minimum_turn_end
+                and (
+                    now - self.avoidance_clear_since
+                    >= self.avoidance_clear_confirm_duration
+                )
+            )
+
+            if clear_confirmed:
+                self.avoidance_active = False
+                self.avoidance_clear_since = None
+                self.obstacle_start_time = None
+                self._stop()
+
+                if self.obstacle_log_active:
+                    self.get_logger().info('Obstacle cleared')
+                    self.obstacle_log_active = False
+
+                return
+
+            twist = Twist()
+
+            if elapsed >= self.avoidance_stop_duration:
+                twist.angular.z = (
+                    self.avoidance_turn_speed
+                    if self.avoidance_direction == 'LEFT'
+                    else -self.avoidance_turn_speed
+                )
+
+            self.cmd_vel_pub.publish(twist)
             return
 
         if self.voice_mode == 'MANEUVER':
@@ -273,8 +349,6 @@ class DecisionNode(Node):
                 twist = Twist()
                 twist.linear.x, twist.angular.z = self.maneuver_twist
                 self.cmd_vel_pub.publish(twist)
-        elif self.voice_mode == 'STOP':
-            self._stop()
 
     def _stop(self):
         self.cmd_vel_pub.publish(Twist())
@@ -296,34 +370,10 @@ class DecisionNode(Node):
         if self.voice_mode != 'AUTO':
             return
 
-        twist = Twist()
-
-        if self.obstacle_detected:
-            if self.obstacle_start_time is None:
-                self.obstacle_start_time = time.time()
-
-            elapsed = time.time() - self.obstacle_start_time
-
-            if elapsed < 1.0:
-                twist.linear.x = 0.0
-                twist.angular.z = 0.0
-            else:
-                twist.linear.x = 0.0
-                twist.angular.z = 0.8 if self.free_direction == 'LEFT' else -0.8
-
-            self.cmd_vel_pub.publish(twist)
-            if not self.obstacle_log_active:
-                self.get_logger().warn(
-                    f'Obstacle detected | Distance: {self.front_distance:.2f} m'
-                )
-                self.obstacle_log_active = True
-
+        if self.avoidance_active:
             return
 
-        self.obstacle_start_time = None
-        if self.obstacle_log_active:
-            self.get_logger().info('Obstacle cleared')
-            self.obstacle_log_active = False
+        twist = Twist()
 
         person_detections = []
         if self.follow_enabled:

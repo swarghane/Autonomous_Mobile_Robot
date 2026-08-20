@@ -52,8 +52,10 @@ class WatchdogNode(Node):
 
         # Immediate LiDAR safety thresholds
         self.declare_parameter("critical_distance_m", 0.28)
+        self.declare_parameter("critical_clear_distance_m", 0.35)
         self.declare_parameter("forward_cone_deg", 25.0)
         self.declare_parameter("min_forward_linear_x", 0.05)
+        self.declare_parameter('front_center_angle_deg', 180.0)
 
         self.declare_parameter("check_rate_hz", 5.0)
         self.declare_parameter("startup_grace_sec", 10.0)
@@ -113,11 +115,18 @@ class WatchdogNode(Node):
         self.critical_distance_m = float(
             self.get_parameter("critical_distance_m").value
         )
+        self.critical_clear_distance_m = float(
+            self.get_parameter("critical_clear_distance_m").value
+        )
         self.forward_cone_deg = float(
             self.get_parameter("forward_cone_deg").value
         )
         self.min_forward_linear_x = float(
             self.get_parameter("min_forward_linear_x").value
+        )
+
+        self.front_center_angle_deg = float(
+            self.get_parameter('front_center_angle_deg').value
         )
 
         self.check_rate_hz = float(
@@ -259,32 +268,56 @@ class WatchdogNode(Node):
                 continue
 
             angle = msg.angle_min + index * msg.angle_increment
-            angle = math.atan2(math.sin(angle), math.cos(angle))
 
-            if abs(angle) <= cone:
+            front_center = math.radians(
+                self.front_center_angle_deg
+            )
+            relative_angle = angle - front_center
+            relative_angle = math.atan2(
+                math.sin(relative_angle),
+                math.cos(relative_angle),
+            )
+
+
+            if abs(relative_angle) <= cone:
                 if min_range is None or distance < min_range:
                     min_range = distance
+
+        moving_forward = (
+            self.last_cmd_linear_x > self.min_forward_linear_x
+        )
+
+        critical_active = "critical_distance" in self.active_reasons
+
+        if critical_active:
+            front_clear = (
+                min_range is None
+                or min_range > self.critical_clear_distance_m
+            )
+
+            if front_clear:
+                self.active_reasons.discard("critical_distance")
+                self._clear_spoken("critical_distance")
+                self._update_estop_state()
+
+            return
 
         critical_distance = (
             min_range is not None
             and min_range < self.critical_distance_m
+            and moving_forward
         )
 
         if critical_distance:
-            if "critical_distance" not in self.active_reasons:
-                self.active_reasons.add("critical_distance")
-                self._speak_once(
-                    "critical_distance",
-                    "Obstacle very close, stopping.",
-                )
-                self.get_logger().error(
-                    "[WATCHDOG] Critical distance "
-                    f"{min_range:.2f} m while moving forward"
-                )
-                self._update_estop_state()
-        elif "critical_distance" in self.active_reasons:
-            self.active_reasons.discard("critical_distance")
-            self._clear_spoken("critical_distance")
+            self.active_reasons.add("critical_distance")
+            self._speak_once(
+                "critical_distance",
+                "Obstacle very close, stopping.",
+            )
+            self.get_logger().error(
+                "[WATCHDOG] Critical distance "
+                f"{min_range:.2f} m while moving forward"
+            )
             self._update_estop_state()
 
     def _battery_callback(self, msg: Float32):
@@ -367,6 +400,7 @@ class WatchdogNode(Node):
         self._update_estop_state()
 
         if self.emergency_active:
+            self._publish_estop(True)
             self._publish_failsafe_stop()
 
         # Startup time is also excluded from the battery-staleness age.
@@ -432,6 +466,8 @@ class WatchdogNode(Node):
 
     def _publish_failsafe_stop(self):
         """Publish a zero-velocity command immediately."""
+        self.last_cmd_linear_x = 0.0
+        self.last_cmd_angular_z = 0.0
         self.cmd_vel_pub.publish(Twist())
 
 
