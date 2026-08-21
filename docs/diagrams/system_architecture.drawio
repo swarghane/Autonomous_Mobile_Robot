@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxfile host="app.diagrams.net" modified="2026-08-21T12:00:00.000Z" agent="ChatGPT" version="24.7.17" type="device">
+  <diagram id="amr-architecture-v2" name="AMR System Architecture">
+    <mxGraphModel dx="1920" dy="1080" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Autonomous Mobile Robot — System Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#17212B;fontSize=34;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="55" y="28" width="1200" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="ROS 2 Humble on NVIDIA Jetson Orin Nano 8GB • TensorRT perception • LiDAR safety • Voice &amp; vision AI" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#5B6773;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="55" y="78" width="1500" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="badge" value="NVIDIA JETSON&#10;EDGE AI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF7DD;strokeColor=#76B900;strokeWidth=2;fontColor=#17212B;fontSize=18;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1630" y="34" width="230" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="inputs" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#84909B;strokeWidth=2;fontColor=#17212B;fontSize=17;align=center;verticalAlign=middle;spacing=7;" vertex="1" parent="1">
+          <mxGeometry x="55" y="150" width="300" height="720" as="geometry"/>
+        </mxCell>
+        <mxCell id="inputs_t" value="SENSORS &amp; INPUTS" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#17212B;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="168" width="250" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="camera" value="IMX219-120 CSI Camera&#10;1640×1232 @ 30 FPS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEEFF;strokeColor=#4D86C6;strokeWidth=2;fontColor=#17212B;fontSize=16;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="88" y="240" width="235" height="92" as="geometry"/>
+        </mxCell>
+        <mxCell id="lidar" value="RPLIDAR C1&#10;2D LaserScan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEEFF;strokeColor=#4D86C6;strokeWidth=2;fontColor=#17212B;fontSize=16;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="88" y="375" width="235" height="82" as="geometry"/>
+        </mxCell>
+        <mxCell id="mic" value="USB Microphone&#10;Wake word + commands" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE6FF;strokeColor=#7B5FC2;strokeWidth=2;fontColor=#17212B;fontSize=16;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="88" y="510" width="235" height="82" as="geometry"/>
+        </mxCell>
+        <mxCell id="battery" value="Battery + Voltage Divider&#10;ESP32 ADC input" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0D8;strokeColor=#C88826;strokeWidth=2;fontColor=#17212B;fontSize=16;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="88" y="645" width="235" height="82" as="geometry"/>
+        </mxCell>
+        <mxCell id="user" value="User / Browser&#10;Web controls" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF1F4;strokeColor=#84909B;strokeWidth=2;fontColor=#17212B;fontSize=15;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="88" y="780" width="235" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="jetson" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#76B900;strokeWidth=2;fontColor=#17212B;fontSize=17;align=center;verticalAlign=middle;spacing=7;" vertex="1" parent="1">
+          <mxGeometry x="390" y="140" width="1050" height="730" as="geometry"/>
+        </mxCell>
+        <mxCell id="jetson_t" value="NVIDIA JETSON ORIN NANO 8GB" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#17212B;fontSize=28;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="425" y="158" width="600" height="38" as="geometry"/>
+        </mxCell>
+        <mxCell id="jetson_s" value="ROS 2 Humble • Docker + NVIDIA Runtime • CUDA / TensorRT" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#5B6773;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="425" y="198" width="700" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="container" value="Containerized Runtime" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF7DD;strokeColor=#76B900;strokeWidth=2;fontColor=#17212B;fontSize=15;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="165" width="210" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="per_g" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4D86C6;strokeWidth=2;fontColor=#17212B;fontSize=17;align=center;verticalAlign=middle;spacing=7;dashed=1;dashPattern=8 5;" vertex="1" parent="1">
+          <mxGeometry x="430" y="255" width="440" height="300" as="geometry"/>
+        </mxCell>
+        <mxCell id="per_t" value="PERCEPTION" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#4D86C6;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="452" y="268" width="180" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="cam_node" value="camera_node&#10;GStreamer → ROS Image" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEEFF;strokeColor=#4D86C6;strokeWidth=2;fontColor=#17212B;fontSize=15;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="320" width="180" height="78" as="geometry"/>
+        </mxCell>
+        <mxCell id="det_node" value="detector_node&#10;YOLOv8n-pose • TensorRT&#10;+ gesture detection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEEFF;strokeColor=#4D86C6;strokeWidth=2;fontColor=#17212B;fontSize=14;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="665" y="320" width="175" height="88" as="geometry"/>
+        </mxCell>
+        <mxCell id="track_node" value="tracking_node&#10;Kalman + Hungarian" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEEFF;strokeColor=#4D86C6;strokeWidth=2;fontColor=#17212B;fontSize=15;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="665" y="445" width="175" height="78" as="geometry"/>
+        </mxCell>
+        <mxCell id="obs_node" value="obstacle_detection_node&#10;Front distance + free direction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEEFF;strokeColor=#4D86C6;strokeWidth=2;fontColor=#17212B;fontSize=14;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="445" width="180" height="78" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctrl_g" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C88826;strokeWidth=2;fontColor=#17212B;fontSize=17;align=center;verticalAlign=middle;spacing=7;dashed=1;dashPattern=8 5;" vertex="1" parent="1">
+          <mxGeometry x="910" y="255" width="490" height="300" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctrl_t" value="CONTROL &amp; SAFETY" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#C88826;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="932" y="268" width="240" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="decision" value="decision_node&#10;Roam • Follow • Avoid&#10;Voice maneuvers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0D8;strokeColor=#C88826;strokeWidth=2;fontColor=#17212B;fontSize=14;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="945" y="320" width="195" height="88" as="geometry"/>
+        </mxCell>
+        <mxCell id="watchdog" value="watchdog_node&#10;Monitors camera, LiDAR, tracks,&#10;cmd_vel &amp; battery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE5E5;strokeColor=#C95555;strokeWidth=2;fontColor=#17212B;fontSize=14;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="320" width="195" height="88" as="geometry"/>
+        </mxCell>
+        <mxCell id="motor" value="motor_control_node&#10;/cmd_vel → serial PWM&#10;+battery telemetry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0D8;strokeColor=#C88826;strokeWidth=2;fontColor=#17212B;fontSize=14;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="945" y="445" width="195" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="display" value="display_node&#10;Annotated visualization" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF1F4;strokeColor=#84909B;strokeWidth=2;fontColor=#17212B;fontSize=15;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="445" width="195" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="int_g" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B5FC2;strokeWidth=2;fontColor=#17212B;fontSize=17;align=center;verticalAlign=middle;spacing=7;dashed=1;dashPattern=8 5;" vertex="1" parent="1">
+          <mxGeometry x="430" y="590" width="970" height="245" as="geometry"/>
+        </mxCell>
+        <mxCell id="int_t" value="HUMAN–ROBOT INTERACTION" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#7B5FC2;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="452" y="603" width="350" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="stt" value="stt_node&#10;Faster-Whisper tiny.en" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE6FF;strokeColor=#7B5FC2;strokeWidth=2;fontColor=#17212B;fontSize=15;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="665" width="185" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="ct2" value="CTranslate2 4.8.1&#10;CUDA • int8_float16" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF7DD;strokeColor=#76B900;strokeWidth=2;fontColor=#17212B;fontSize=15;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="675" y="665" width="185" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="llm" value="llm_node&#10;NVIDIA NIM client&#10;Chat + vision requests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE6FF;strokeColor=#7B5FC2;strokeWidth=2;fontColor=#17212B;fontSize=14;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="890" y="665" width="195" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="tts" value="tts_node&#10;Piper Offline TTS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE6FF;strokeColor=#7B5FC2;strokeWidth=2;fontColor=#17212B;fontSize=15;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1115" y="665" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="web" value="web_video_server + robot_ui&#10;Camera / face / controls" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF1F4;strokeColor=#84909B;strokeWidth=2;fontColor=#17212B;fontSize=14;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="770" width="345" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="out" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#84909B;strokeWidth=2;fontColor=#17212B;fontSize=17;align=center;verticalAlign=middle;spacing=7;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="150" width="385" height="720" as="geometry"/>
+        </mxCell>
+        <mxCell id="out_t" value="ACTUATION &amp; EXTERNAL SERVICES" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#17212B;fontSize=19;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1505" y="168" width="330" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="esp" value="ESP32-C3 Super Mini&#10;Motor + battery MCU" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0D8;strokeColor=#C88826;strokeWidth=2;fontColor=#17212B;fontSize=16;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1535" y="255" width="275" height="82" as="geometry"/>
+        </mxCell>
+        <mxCell id="drivers" value="2 × BTS7960&#10;Motor Drivers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0D8;strokeColor=#C88826;strokeWidth=2;fontColor=#17212B;fontSize=16;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1535" y="375" width="275" height="76" as="geometry"/>
+        </mxCell>
+        <mxCell id="motors" value="4 × Johnson DC Motors&#10;12V • 100 RPM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0D8;strokeColor=#C88826;strokeWidth=2;fontColor=#17212B;fontSize=16;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1535" y="492" width="275" height="76" as="geometry"/>
+        </mxCell>
+        <mxCell id="speaker" value="Speaker&#10;Robot voice output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE6FF;strokeColor=#7B5FC2;strokeWidth=2;fontColor=#17212B;fontSize=16;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1535" y="610" width="275" height="76" as="geometry"/>
+        </mxCell>
+        <mxCell id="nim" value="NVIDIA NIM API&#10;Remote Chat / Vision inference" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF7DD;strokeColor=#76B900;strokeWidth=2;fontColor=#17212B;fontSize=15;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1535" y="728" width="275" height="76" as="geometry"/>
+        </mxCell>
+        <mxCell id="webui" value="Web UI / Video Stream" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF1F4;strokeColor=#84909B;strokeWidth=2;fontColor=#17212B;fontSize=14;align=center;verticalAlign=middle;spacing=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1535" y="822" width="275" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="cam_in" value="CSI / GStreamer" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4D86C6;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="camera" target="cam_node">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="lid_in" value="/scan" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4D86C6;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="lidar" target="obs_node">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mic_in" value="audio" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7B5FC2;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="mic" target="stt">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="bat_in" value="ADC" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C88826;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="battery" target="esp">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="user_in" value="browser" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#84909B;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="user" target="web">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="cam_det" value="/camera/image_raw" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4D86C6;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="cam_node" target="det_node">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="det_track" value="/detections" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4D86C6;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="det_node" target="track_node">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="track_dec" value="/tracked_detections" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4D86C6;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="track_node" target="decision">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="obs_dec" value="obstacle + direction" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4D86C6;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="obs_node" target="decision">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="dec_motor" value="/cmd_vel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C88826;strokeWidth=3;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="decision" target="motor">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="watch_dec" value="/emergency_stop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C95555;strokeWidth=3;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="watchdog" target="decision">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="watch_motor" value="failsafe zero" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C95555;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="watchdog" target="motor">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="motor_esp" value="serial PWM" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C88826;strokeWidth=3;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="motor" target="esp">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="esp_drv" value="PWM" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C88826;strokeWidth=3;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="esp" target="drivers">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="drv_mot" value="motor power" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C88826;strokeWidth=3;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="drivers" target="motors">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="esp_batt" value="battery status" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C88826;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="esp" target="motor">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="per_watch" value="safety + liveness" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C95555;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="obs_node" target="watchdog">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="cam_disp" value="image" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#84909B;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="cam_node" target="display">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="track_disp" value="tracks" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#84909B;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="track_node" target="display">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="stt_ct" value="GPU inference" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#76B900;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="stt" target="ct2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ct_stt" value="transcript" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#76B900;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="ct2" target="stt">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="stt_dec" value="/voice_command" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7B5FC2;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="stt" target="decision">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="stt_llm" value="queries" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7B5FC2;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="stt" target="llm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="cam_llm" value="vision frame" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7B5FC2;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="cam_node" target="llm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="llm_tts" value="response" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7B5FC2;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="llm" target="tts">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="tts_spk" value="audio" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7B5FC2;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="tts" target="speaker">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="llm_nim" value="HTTPS API" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#76B900;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="llm" target="nim">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="nim_llm" value="inference result" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#76B900;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="nim" target="llm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="display_web" value="visualization" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#84909B;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;dashed=1;dashPattern=7 5;" edge="1" parent="1" source="display" target="web">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_out" value="HTTP / video" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#84909B;strokeWidth=2;endArrow=block;endFill=1;fontColor=#5B6773;fontSize=13;labelBackgroundColor=#F7F8FA;" edge="1" parent="1" source="web" target="webui">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend" value="Solid = primary data/control flow   •   Dashed = monitoring, support or remote API flow   •   Red = safety override" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF1F4;strokeColor=#84909B;strokeWidth=2;fontColor=#17212B;fontSize=14;align=center;verticalAlign=middle;spacing=7;" vertex="1" parent="1">
+          <mxGeometry x="390" y="905" width="1050" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="repo" value="Repository: swarghane/Autonomous_Mobile_Robot" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#5B6773;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="55" y="925" width="310" height="28" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

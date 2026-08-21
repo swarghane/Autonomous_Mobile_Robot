@@ -23,6 +23,7 @@ pygame==2.6.1
 pyserial==3.5
 python-dotenv==1.2.2
 pyttsx3==2.99
+piper-tts==1.6.0
 requests==2.32.5
 scipy==1.10.1
 sounddevice==0.5.5
