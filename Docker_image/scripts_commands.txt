@@ -1,0 +1,5 @@
+./scripts/build.sh
+
+./scripts/run.sh
+
+./scripts/test.sh

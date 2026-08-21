@@ -1,0 +1,6 @@
+# This docker image is strictly for Nvidia device like Jetson Nano/ Jetson Orin Nano/ any Jetson boards
+
+# The base image used for this image is "dustynv/l4t-pytorch:r36.4.0"
+
+# "FROM dustynv/l4t-pytorch:r36.4.0" this command is in the dockerfile and it will search locally first and if it is not present locally, it will download from the internet.
+ 
