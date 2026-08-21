@@ -14,7 +14,7 @@ The robot performs its high-level perception, autonomous behaviour, interaction,
 
 # Demo
 
-🎥 **Full AMR Demonstration:** [Watch on YouTube] https://youtu.be/16Se3gCuTcY
+🎥 **Full AMR Demonstration:** [Watch on YouTube](https://youtu.be/16Se3gCuTcY)
 
 The demonstration includes:
 
