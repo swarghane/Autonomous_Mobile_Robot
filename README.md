@@ -1084,13 +1084,16 @@ Autonomous_Mobile_Robot/
 │               └── libctranslate2.so.4.8.1
 │
 ├── docs/
+│   ├──diagrams/
+|   |   └──system_architecture.drawio
+|   |    
 │   └── images/
 │       ├── amr_final.jpg
 │       ├── system_architecture.png
 │       ├── jetson_orin_nano.jpg
 │       ├── jetson_orin_nano_case.jpg
 │       ├── web_ui.jpg
-│       └── amr_runtime_tegrastats.jpg
+│       └── amr_runtime_tegrastats.png
 │
 ├── firmware/
 │   └── esp32_motor_battery/
@@ -1124,7 +1127,6 @@ Autonomous_Mobile_Robot/
 │   ├── rplidar_ros/
 │   └── web_video_server/
 │
-├── installed_packages.txt
 ├── requirements.txt
 ├── start_robot.sh
 ├── .gitignore
