@@ -19,7 +19,7 @@ cleanup() {
     xhost -local:docker >/dev/null 2>&1
 
     # Keep the persistent container running
-    # docker stop my_robotics_env
+    # docker stop amr_base_container
 
     echo "✅ Cleanup complete."
 }
@@ -43,9 +43,9 @@ WEB_PID=$!
 cd "$HOME" || exit 1
 
 # 3. Start the persistent Docker container
-echo "🐳 Waking up container: my_robotics_env..."
+echo "🐳 Waking up container: amr_base_container..."
 
-if ! docker start my_robotics_env >/dev/null; then
+if ! docker start amr_base_container >/dev/null; then
     echo "❌ Failed to start Docker container!"
     exit 1
 fi
@@ -53,7 +53,7 @@ fi
 # 4. Launch the ROS 2 stack inside the container
 echo "🚀 Launching all autonomous nodes..."
 
-docker exec -it my_robotics_env /bin/bash -c '
+docker exec -it amr_base_container /bin/bash -c '
     export OMP_NUM_THREADS=1
     export OPENBLAS_NUM_THREADS=1
     export MKL_NUM_THREADS=1

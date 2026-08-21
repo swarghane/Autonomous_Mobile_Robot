@@ -570,3 +570,10 @@ ESP32 Communication
 ```
 
 The result is a containerized runtime for the complete perception, decision, interaction, safety, visualization, and hardware-control stack of the robot.
+
+
+## License
+
+Original code in this project is licensed under the [MIT License](LICENSE).
+
+Third-party libraries, ROS packages, models, and redistributed binary components remain subject to their respective upstream licenses.

@@ -1,6 +1,6 @@
 # Autonomous Mobile Robot — ROS 2 + NVIDIA Jetson Orin Nano
 
-A complete indoor **Autonomous Mobile Robot (AMR)** built around **ROS 2 Humble** and the **NVIDIA Jetson Orin Nano 8GB*, combining real-time TensorRT perception, person tracking and following, LiDAR-based obstacle avoidance, autonomous exploration, voice interaction, vision-language interaction, motor control, battery monitoring, hand-gesture control, a web interface, and an independent safety watchdog.
+A complete indoor **Autonomous Mobile Robot (AMR)** built around **ROS 2 Humble** and the **NVIDIA Jetson Orin Nano 8GB**, combining real-time TensorRT perception, person tracking and following, LiDAR-based obstacle avoidance, autonomous exploration, voice interaction, vision-language interaction, motor control, battery monitoring, hand-gesture control, a web interface, and an independent safety watchdog.
 
 The robot performs its high-level perception, autonomous behaviour, interaction, and safety processing on the **Jetson Orin Nano**, while an **ESP32-C3** handles low-level motor actuation and battery sensing.
 
@@ -1090,7 +1090,7 @@ Autonomous_Mobile_Robot/
 │       ├── jetson_orin_nano.jpg
 │       ├── jetson_orin_nano_case.jpg
 │       ├── web_ui.jpg
-│       └── tegrastats.jpg
+│       └── amr_runtime_tegrastats.jpg
 │
 ├── firmware/
 │   └── esp32_motor_battery/
@@ -1350,7 +1350,7 @@ The detector uses a TensorRT `.engine` model to run perception on the Jetson GPU
 The complete ROS 2 AMR stack was monitored during operation using NVIDIA `tegrastats`. The screenshot below shows the perception, obstacle-detection, autonomous-decision and battery-monitoring nodes running alongside real-time Jetson CPU, GPU, memory, thermal and power telemetry.
 
 <p align="center">
-  <img src="docs/images/amr_runtime_tegrastats.png" width="1000" alt="AMR ROS 2 stack running alongside NVIDIA Jetson tegrastats">
+  <img src="docs/images/amr_runtime_tegrastats.png" width="950" alt="NVIDIA Jetson Orin Nano tegrastats while running the complete AMR stack">
 </p>
 
 ---

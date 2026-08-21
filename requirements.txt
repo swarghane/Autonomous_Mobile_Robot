@@ -17,6 +17,7 @@ openai-whisper==20250625
 polars==1.41.0
 psutil==7.0.0
 PyAudio==0.2.14
+piper-tts==1.6.0
 pydantic==2.13.4
 pydub==0.25.1
 pygame==2.6.1
@@ -31,4 +32,3 @@ tiktoken==0.13.0
 tokenizers==0.23.1
 ujson==5.1.0
 ultralytics==8.4.37
-piper-tts==1.6.0
